@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "481780332720",
+    "project_id": "therapi-dc40f",
+    "storage_bucket": "therapi-dc40f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:481780332720:android:0859a26cf2c536d4f2e375",
+        "android_client_info": {
+          "package_name": "com.example.therap_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA92m2LUaWgkVOIAA_hxojoFiPXmXs80Ls"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
