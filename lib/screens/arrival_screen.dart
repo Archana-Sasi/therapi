@@ -32,13 +32,46 @@ class ArrivalScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.health_and_safety, size: 80),
-              const SizedBox(height: 16),
-              const Text(
-                'Welcome to Therap',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              // Lung Logo with Caring Hands
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2962FF).withOpacity(0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Image.asset(
+                  'assets/images/lung_logo.png',
+                  width: 120,
+                  height: 120,
+                  fit: BoxFit.contain,
+                ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              const Text(
+                'RespiriCare',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2962FF),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Breathe Better, Live Better',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(

@@ -24,13 +24,23 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> signup(String fullName, String email, String password) async {
+  Future<void> signup(
+    String fullName, 
+    String email, 
+    String password, {
+    String role = 'patient',
+    int? age,
+    String? gender,
+  }) async {
     _setLoading(true);
     try {
       _user = await _authService.signup(
         email: email,
         password: password,
         fullName: fullName,
+        role: role,
+        age: age,
+        gender: gender,
       );
     } finally {
       _setLoading(false);

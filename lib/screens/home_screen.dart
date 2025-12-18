@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import 'arrival_screen.dart';
+import 'disease_selection_screen.dart';
+import 'my_medications_screen.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -17,7 +19,7 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Therap'),
+        title: const Text('RespiriCare'),
         centerTitle: true,
         actions: [
           // Profile Avatar Button
@@ -129,40 +131,25 @@ class HomeScreen extends StatelessWidget {
                   icon: Icons.medication_outlined,
                   title: 'Drug Directory',
                   subtitle: 'A-Z Medications',
-                  color: Colors.blue,
+                  color: const Color(0xFF2196F3), // Vibrant Blue
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Coming soon!')),
-                    );
+                    Navigator.pushNamed(context, DiseaseSelectionScreen.route);
                   },
                 ),
                 _QuickActionCard(
-                  icon: Icons.alarm,
+                  icon: Icons.medication,
                   title: 'My Medications',
-                  subtitle: 'Reminders',
-                  color: Colors.green,
+                  subtitle: 'View your drugs',
+                  color: const Color(0xFF00C853), // Vibrant Green
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Coming soon!')),
-                    );
+                    Navigator.pushNamed(context, MyMedicationsScreen.route);
                   },
                 ),
                 _QuickActionCard(
                   icon: Icons.note_add_outlined,
                   title: 'Log Symptoms',
                   subtitle: 'Track health',
-                  color: Colors.orange,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Coming soon!')),
-                    );
-                  },
-                ),
-                _QuickActionCard(
-                  icon: Icons.school_outlined,
-                  title: 'Education',
-                  subtitle: 'Learn more',
-                  color: Colors.purple,
+                  color: const Color(0xFFFF6D00), // Vibrant Orange
                   onTap: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Coming soon!')),
@@ -204,19 +191,19 @@ class HomeScreen extends StatelessWidget {
                           icon: Icons.check_circle,
                           value: '0',
                           label: 'Taken',
-                          color: Colors.green,
+                          color: const Color(0xFF00C853), // Vibrant Green
                         ),
                         _SummaryItem(
                           icon: Icons.schedule,
                           value: '0',
                           label: 'Pending',
-                          color: Colors.orange,
+                          color: const Color(0xFFFF9100), // Vibrant Amber
                         ),
                         _SummaryItem(
                           icon: Icons.cancel,
                           value: '0',
                           label: 'Missed',
-                          color: Colors.red,
+                          color: const Color(0xFFFF5252), // Vibrant Red
                         ),
                       ],
                     ),

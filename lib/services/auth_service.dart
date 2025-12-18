@@ -19,14 +19,19 @@ class AuthService {
       email: email,
       password: password,
     );
-    return _mapFirebaseUser(credential.user!);
+    // Fetch user profile from Firestore to get role
+    final userProfile = await getUserProfile(credential.user!.uid);
+    return userProfile ?? _mapFirebaseUser(credential.user!);
   }
 
-  /// Creates a new user account with email, password, and full name.
+  /// Creates a new user account with email, password, full name, and role.
   Future<UserModel> signup({
     required String email,
     required String password,
     required String fullName,
+    String role = 'patient',
+    int? age,
+    String? gender,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -38,7 +43,9 @@ class AuthService {
       id: credential.user!.uid,
       email: email,
       fullName: fullName,
-      role: 'patient',
+      role: role,
+      age: age,
+      gender: gender,
     );
     
     // Try to save to Firestore, but don't fail if unavailable
@@ -142,4 +149,134 @@ class AuthService {
       print('Firestore unavailable: $e');
     }
   }
+
+  /// Gets all users from Firestore (for admin/pharmacist dashboards).
+  Future<List<UserModel>> getAllUsers() async {
+    try {
+      final snapshot = await _firestore.collection('users').get();
+      return snapshot.docs
+          .map((doc) => UserModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print('Firestore unavailable: $e');
+      return [];
+    }
+  }
+
+  /// Adds a medication with brand to the current user's medication list.
+  Future<bool> addMedication(String drugId, String brandName) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        'medications': FieldValue.arrayUnion([{
+          'drugId': drugId,
+          'brandName': brandName,
+        }]),
+      }, SetOptions(merge: true));
+      return true;
+    } catch (e) {
+      print('Failed to add medication: $e');
+      return false;
+    }
+  }
+
+  /// Removes a medication from the current user's medication list.
+  Future<bool> removeMedication(String drugId, String brandName) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      await _firestore.collection('users').doc(user.uid).update({
+        'medications': FieldValue.arrayRemove([{
+          'drugId': drugId,
+          'brandName': brandName,
+        }]),
+      });
+      return true;
+    } catch (e) {
+      print('Failed to remove medication: $e');
+      return false;
+    }
+  }
+
+  /// Checks if the current user is taking a specific medication.
+  Future<bool> isUserTakingMedication(String drugId) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final medications = doc.data()?['medications'] ?? [];
+        if (medications is List) {
+          for (final med in medications) {
+            if (med is Map && med['drugId'] == drugId) {
+              return true;
+            }
+            // Support old format (string only)
+            if (med is String && med == drugId) {
+              return true;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Failed to check medication: $e');
+    }
+    return false;
+  }
+
+  /// Gets the brand name the user is using for a specific drug.
+  Future<String?> getUserMedicationBrand(String drugId) async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final medications = doc.data()?['medications'] ?? [];
+        if (medications is List) {
+          for (final med in medications) {
+            if (med is Map && med['drugId'] == drugId) {
+              return med['brandName'] as String?;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Failed to get medication brand: $e');
+    }
+    return null;
+  }
+
+  /// Gets the current user's medication list as maps.
+  Future<List<Map<String, String>>> getCurrentUserMedications() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final medications = doc.data()?['medications'] ?? [];
+        if (medications is List) {
+          return medications.map((med) {
+            if (med is Map) {
+              return {
+                'drugId': (med['drugId'] ?? '').toString(),
+                'brandName': (med['brandName'] ?? '').toString(),
+              };
+            }
+            // Support old format
+            return {'drugId': med.toString(), 'brandName': ''};
+          }).toList();
+        }
+      }
+    } catch (e) {
+      print('Failed to get medications: $e');
+    }
+    return [];
+  }
 }
+

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import 'admin_home_screen.dart';
 import 'home_screen.dart';
+import 'pharmacist_home_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -27,6 +29,21 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _navigateByRole(String role) {
+    String route;
+    switch (role) {
+      case 'pharmacist':
+        route = PharmacistHomeScreen.route;
+        break;
+      case 'admin':
+        route = AdminHomeScreen.route;
+        break;
+      default:
+        route = HomeScreen.route;
+    }
+    Navigator.pushReplacementNamed(context, route);
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
@@ -36,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text.trim(),
       );
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, HomeScreen.route);
+      _navigateByRole(auth.user?.role ?? 'patient');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -50,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await auth.signInWithGoogle();
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, HomeScreen.route);
+      _navigateByRole(auth.user?.role ?? 'patient');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Therap',
+                  'RespiriCare',
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,

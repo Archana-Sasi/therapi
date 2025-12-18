@@ -121,11 +121,11 @@ class ProfileScreen extends StatelessWidget {
             ),
             _ProfileTile(
               icon: Icons.info_outline,
-              title: 'About Therap',
+              title: 'About RespiriCare',
               onTap: () {
                 showAboutDialog(
                   context: context,
-                  applicationName: 'Therap',
+                  applicationName: 'RespiriCare',
                   applicationVersion: '1.0.0',
                   applicationIcon: Icon(
                     Icons.health_and_safety,
@@ -174,11 +174,11 @@ class ProfileScreen extends StatelessWidget {
   Color _getRoleColor(String role) {
     switch (role) {
       case 'admin':
-        return Colors.red;
+        return const Color(0xFFFF5252); // Vibrant Red
       case 'pharmacist':
-        return Colors.blue;
+        return const Color(0xFF2962FF); // Vibrant Blue
       default:
-        return Colors.green;
+        return const Color(0xFF00C853); // Vibrant Green
     }
   }
 }

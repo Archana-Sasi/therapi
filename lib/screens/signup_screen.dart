@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import 'admin_home_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
+import 'pharmacist_home_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -19,27 +21,58 @@ class _SignupScreenState extends State<SignupScreen> {
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _ageController = TextEditingController();
   bool _obscurePassword = true;
+  String _selectedRole = 'patient';
+  String? _selectedGender;
+
+  static const List<Map<String, String>> _roles = [
+    {'value': 'patient', 'label': 'User (Patient)'},
+    {'value': 'pharmacist', 'label': 'Pharmacist'},
+    {'value': 'admin', 'label': 'Admin'},
+  ];
+
+  static const List<String> _genders = ['Male', 'Female', 'Other'];
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _ageController.dispose();
     super.dispose();
+  }
+
+  void _navigateByRole(String role) {
+    String route;
+    switch (role) {
+      case 'pharmacist':
+        route = PharmacistHomeScreen.route;
+        break;
+      case 'admin':
+        route = AdminHomeScreen.route;
+        break;
+      default:
+        route = HomeScreen.route;
+    }
+    Navigator.pushReplacementNamed(context, route);
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
     try {
+      final age = int.tryParse(_ageController.text.trim());
       await auth.signup(
         _fullNameController.text.trim(),
         _emailController.text.trim(),
         _passwordController.text.trim(),
+        role: _selectedRole,
+        age: age,
+        gender: _selectedGender,
       );
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, HomeScreen.route);
+      _navigateByRole(_selectedRole);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -53,7 +86,7 @@ class _SignupScreenState extends State<SignupScreen> {
     try {
       await auth.signInWithGoogle();
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, HomeScreen.route);
+      _navigateByRole(auth.user?.role ?? 'patient');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -88,7 +121,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Join Therap',
+                  'Join RespiriCare',
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,
@@ -170,6 +203,85 @@ class _SignupScreenState extends State<SignupScreen> {
                       return 'At least 6 characters';
                     }
                     return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Age and Gender Row
+                Row(
+                  children: [
+                    // Age field
+                    Expanded(
+                      child: TextFormField(
+                        controller: _ageController,
+                        decoration: InputDecoration(
+                          labelText: 'Age',
+                          prefixIcon: const Icon(Icons.cake_outlined),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value != null && value.isNotEmpty) {
+                            final age = int.tryParse(value);
+                            if (age == null || age < 1 || age > 120) {
+                              return 'Invalid age';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Gender field
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedGender,
+                        decoration: InputDecoration(
+                          labelText: 'Gender',
+                          prefixIcon: const Icon(Icons.person_outline),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items: _genders
+                            .map((g) => DropdownMenuItem(
+                                  value: g.toLowerCase(),
+                                  child: Text(g),
+                                ))
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedGender = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Role Dropdown
+                DropdownButtonFormField<String>(
+                  value: _selectedRole,
+                  decoration: InputDecoration(
+                    labelText: 'Sign up as',
+                    prefixIcon: const Icon(Icons.badge_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: _roles
+                      .map((role) => DropdownMenuItem(
+                            value: role['value'],
+                            child: Text(role['label']!),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedRole = value ?? 'patient';
+                    });
                   },
                 ),
                 const SizedBox(height: 24),
