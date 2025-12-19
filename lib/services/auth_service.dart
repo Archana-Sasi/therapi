@@ -15,6 +15,11 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    // Sign out any existing session first to clear cached credentials
+    try {
+      await _auth.signOut();
+    } catch (_) {}
+    
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,

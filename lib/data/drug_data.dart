@@ -110,7 +110,7 @@ class DrugData {
           'A long-acting beta-2 agonist (LABA) providing 12-hour bronchodilation for maintenance therapy.',
       dosage:
           'Inhaler: 12mcg twice daily. Should not be used for acute symptoms.',
-      sideEffects: [
+    sideEffects: [
         'Tremor',
         'Headache',
         'Palpitations',

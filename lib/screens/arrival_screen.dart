@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import 'admin_home_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
+import 'pharmacist_home_screen.dart';
 import 'signup_screen.dart';
 
 class ArrivalScreen extends StatelessWidget {
@@ -11,18 +13,56 @@ class ArrivalScreen extends StatelessWidget {
 
   static const route = '/';
 
+  void _navigateByRole(BuildContext context, String role) {
+    String route;
+    switch (role) {
+      case 'pharmacist':
+        route = PharmacistHomeScreen.route;
+        break;
+      case 'admin':
+        route = AdminHomeScreen.route;
+        break;
+      default:
+        route = HomeScreen.route;
+    }
+    Navigator.pushReplacementNamed(context, route);
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
+    // Show loading while checking for existing session
+    if (auth.isInitializing) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/lung_logo.png',
+                width: 100,
+                height: 100,
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Loading...',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Auto-navigate if already logged in
     if (auth.isLoggedIn) {
       Future.microtask(() {
-        if (Navigator.canPop(context)) {
-          Navigator.popAndPushNamed(context, HomeScreen.route);
-        } else {
-          Navigator.pushReplacementNamed(context, HomeScreen.route);
-        }
+        _navigateByRole(context, auth.user?.role ?? 'patient');
       });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -98,5 +138,6 @@ class ArrivalScreen extends StatelessWidget {
     );
   }
 }
+
 
 

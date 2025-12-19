@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 import 'arrival_screen.dart';
 import 'profile_screen.dart';
+import 'symptom_history_screen.dart';
 
 class PharmacistHomeScreen extends StatefulWidget {
   const PharmacistHomeScreen({super.key});
@@ -521,6 +522,24 @@ class _UserMedicationCardState extends State<_UserMedicationCard> {
                         ),
                       );
                     }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  // View Symptoms Button
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SymptomHistoryScreen(userId: widget.user.id),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.monitor_heart_outlined, size: 16),
+                    label: const Text('View Symptom Logs'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
                   ),
                 ],
               ),

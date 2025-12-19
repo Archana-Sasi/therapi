@@ -44,6 +44,33 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.pushReplacementNamed(context, route);
   }
 
+  /// Converts Firebase error messages to user-friendly text
+  String _getFriendlyErrorMessage(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    
+    if (errorString.contains('invalid-credential') || 
+        errorString.contains('wrong-password') ||
+        errorString.contains('invalid-email')) {
+      return 'Invalid email or password. Please try again.';
+    } else if (errorString.contains('user-not-found')) {
+      return 'No account found with this email.';
+    } else if (errorString.contains('user-disabled')) {
+      return 'This account has been disabled.';
+    } else if (errorString.contains('too-many-requests')) {
+      return 'Too many failed attempts. Please try again later.';
+    } else if (errorString.contains('network')) {
+      return 'Network error. Please check your connection.';
+    } else if (errorString.contains('email-already-in-use')) {
+      return 'This email is already registered.';
+    } else if (errorString.contains('weak-password')) {
+      return 'Password is too weak. Use at least 6 characters.';
+    } else if (errorString.contains('cancelled')) {
+      return 'Sign in was cancelled.';
+    }
+    
+    return 'Something went wrong. Please try again.';
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
@@ -57,7 +84,10 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(_getFriendlyErrorMessage(e)),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -71,7 +101,10 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(_getFriendlyErrorMessage(e)),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -101,7 +134,10 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(_getFriendlyErrorMessage(e)),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

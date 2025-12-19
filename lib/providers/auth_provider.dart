@@ -4,15 +4,35 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  AuthProvider({required AuthService authService}) : _authService = authService;
+  AuthProvider({required AuthService authService}) : _authService = authService {
+    // Automatically check for existing login session on startup
+    _initializeAuth();
+  }
 
   final AuthService _authService;
   UserModel? _user;
   bool _loading = false;
+  bool _initializing = true;
 
   UserModel? get user => _user;
   bool get isLoading => _loading;
   bool get isLoggedIn => _user != null;
+  bool get isInitializing => _initializing;
+
+  /// Checks if user is already logged in from a previous session
+  Future<void> _initializeAuth() async {
+    try {
+      final currentUser = _authService.currentUser;
+      if (currentUser != null) {
+        _user = await _authService.getUserProfile(currentUser.uid);
+      }
+    } catch (e) {
+      debugPrint('Auto-login failed: $e');
+    } finally {
+      _initializing = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> login(String email, String password) async {
     _setLoading(true);
@@ -86,3 +106,4 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+

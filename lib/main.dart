@@ -12,6 +12,8 @@ import 'screens/my_medications_screen.dart';
 import 'screens/pharmacist_home_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/signup_screen.dart';
+import 'screens/symptom_history_screen.dart';
+import 'screens/symptom_log_screen.dart';
 import 'services/auth_service.dart';
 
 void main() async {
@@ -90,6 +92,8 @@ class MyApp extends StatelessWidget {
           AdminHomeScreen.route: (_) => const AdminHomeScreen(),
           DiseaseSelectionScreen.route: (_) => const DiseaseSelectionScreen(),
           MyMedicationsScreen.route: (_) => const MyMedicationsScreen(),
+          SymptomLogScreen.route: (_) => const SymptomLogScreen(),
+          SymptomHistoryScreen.route: (_) => const SymptomHistoryScreen(),
         },
       ),
     );

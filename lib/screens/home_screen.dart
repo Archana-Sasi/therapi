@@ -6,6 +6,7 @@ import 'arrival_screen.dart';
 import 'disease_selection_screen.dart';
 import 'my_medications_screen.dart';
 import 'profile_screen.dart';
+import 'symptom_history_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -151,9 +152,7 @@ class HomeScreen extends StatelessWidget {
                   subtitle: 'Track health',
                   color: const Color(0xFFFF6D00), // Vibrant Orange
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Coming soon!')),
-                    );
+                    Navigator.pushNamed(context, SymptomHistoryScreen.route);
                   },
                 ),
               ],
