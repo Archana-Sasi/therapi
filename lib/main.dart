@@ -15,10 +15,12 @@ import 'screens/signup_screen.dart';
 import 'screens/symptom_history_screen.dart';
 import 'screens/symptom_log_screen.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await NotificationService().initialize();
   runApp(const MyApp());
 }
 

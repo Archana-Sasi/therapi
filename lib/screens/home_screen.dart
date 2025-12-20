@@ -1,17 +1,84 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/medication_log.dart';
 import '../providers/auth_provider.dart';
+import '../services/auth_service.dart';
 import 'arrival_screen.dart';
 import 'disease_selection_screen.dart';
 import 'my_medications_screen.dart';
+import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'symptom_history_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   static const route = '/home';
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _authService = AuthService();
+  Map<String, int> _summary = {'taken': 0, 'pending': 0, 'missed': 0};
+  List<MedicationLog> _pendingLogs = [];
+  bool _isLoadingSummary = true;
+  int _unreadNotifications = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSummary();
+    _loadNotificationCount();
+  }
+
+  Future<void> _loadNotificationCount() async {
+    final count = await _authService.getUnreadNotificationCount();
+    if (mounted) {
+      setState(() => _unreadNotifications = count);
+    }
+  }
+
+  Future<void> _loadSummary() async {
+    setState(() => _isLoadingSummary = true);
+    
+    // Generate today's logs based on reminders
+    await _authService.generateTodaysLogs();
+    
+    // Get summary and pending logs
+    final summary = await _authService.getTodaysSummary();
+    final logs = await _authService.getTodaysMedicationLogs();
+    final pendingLogs = logs.where((log) => 
+      log.status == MedicationStatus.pending && 
+      !DateTime.now().isAfter(log.scheduledTime)
+    ).toList();
+    
+    if (mounted) {
+      setState(() {
+        _summary = summary;
+        _pendingLogs = pendingLogs;
+        _isLoadingSummary = false;
+      });
+    }
+  }
+
+  Future<void> _markAsTaken(MedicationLog log) async {
+    final success = await _authService.updateMedicationLogStatus(
+      log.id, 
+      MedicationStatus.taken,
+    );
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${log.brandName} marked as taken!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _loadSummary();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +90,49 @@ class HomeScreen extends StatelessWidget {
         title: const Text('RespiriCare'),
         centerTitle: true,
         actions: [
+          // Notification Bell
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                  _loadNotificationCount();
+                },
+              ),
+              if (_unreadNotifications > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      _unreadNotifications > 9 ? '9+' : '$_unreadNotifications',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           // Profile Avatar Button
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -60,160 +170,226 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: theme.colorScheme.primaryContainer,
-                      backgroundImage: user?.photoUrl != null
-                          ? NetworkImage(user!.photoUrl!)
-                          : null,
-                      child: user?.photoUrl == null
-                          ? Icon(
-                              Icons.person,
-                              size: 30,
-                              color: theme.colorScheme.onPrimaryContainer,
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+      body: RefreshIndicator(
+        onRefresh: _loadSummary,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome Card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: theme.colorScheme.primaryContainer,
+                        backgroundImage: user?.photoUrl != null
+                            ? NetworkImage(user!.photoUrl!)
+                            : null,
+                        child: user?.photoUrl == null
+                            ? Icon(
+                                Icons.person,
+                                size: 30,
+                                color: theme.colorScheme.onPrimaryContainer,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Welcome back,',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            Text(
+                              user?.fullName ?? 'User',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Today's Summary Card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          Text(
-                            'Welcome back,',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
+                          Icon(
+                            Icons.calendar_today,
+                            color: theme.colorScheme.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              "Today's Summary",
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Text(
-                            user?.fullName ?? 'User',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
+                          if (_isLoadingSummary)
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
+                            IconButton(
+                              icon: const Icon(Icons.refresh, size: 20),
+                              onPressed: _loadSummary,
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
                             ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _SummaryItem(
+                            icon: Icons.check_circle,
+                            value: _summary['taken'].toString(),
+                            label: 'Taken',
+                            color: const Color(0xFF00C853),
+                          ),
+                          _SummaryItem(
+                            icon: Icons.schedule,
+                            value: _summary['pending'].toString(),
+                            label: 'Pending',
+                            color: const Color(0xFFFF9100),
+                          ),
+                          _SummaryItem(
+                            icon: Icons.cancel,
+                            value: _summary['missed'].toString(),
+                            label: 'Missed',
+                            color: const Color(0xFFFF5252),
                           ),
                         ],
                       ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Upcoming Medications
+              if (_pendingLogs.isNotEmpty) ...[
+                Text(
+                  'Upcoming Medications',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...(_pendingLogs.take(3).map((log) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.medication, color: Colors.blue),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Quick Actions Title
-            Text(
-              'Quick Actions',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Quick Action Grid
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              children: [
-                _QuickActionCard(
-                  icon: Icons.medication_outlined,
-                  title: 'Drug Directory',
-                  subtitle: 'A-Z Medications',
-                  color: const Color(0xFF2196F3), // Vibrant Blue
-                  onTap: () {
-                    Navigator.pushNamed(context, DiseaseSelectionScreen.route);
-                  },
-                ),
-                _QuickActionCard(
-                  icon: Icons.medication,
-                  title: 'My Medications',
-                  subtitle: 'View your drugs',
-                  color: const Color(0xFF00C853), // Vibrant Green
-                  onTap: () {
-                    Navigator.pushNamed(context, MyMedicationsScreen.route);
-                  },
-                ),
-                _QuickActionCard(
-                  icon: Icons.note_add_outlined,
-                  title: 'Log Symptoms',
-                  subtitle: 'Track health',
-                  color: const Color(0xFFFF6D00), // Vibrant Orange
-                  onTap: () {
-                    Navigator.pushNamed(context, SymptomHistoryScreen.route);
-                  },
-                ),
+                    title: Text(
+                      log.brandName.isNotEmpty ? log.brandName : log.drugId,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: Text(
+                      'Scheduled: ${_formatTime(log.scheduledTime)}',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                    trailing: TextButton(
+                      onPressed: () => _markAsTaken(log),
+                      child: const Text('Take'),
+                    ),
+                  ),
+                ))),
+                const SizedBox(height: 16),
               ],
-            ),
 
-            const SizedBox(height: 24),
-
-            // Today's Summary Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "Today's Summary",
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _SummaryItem(
-                          icon: Icons.check_circle,
-                          value: '0',
-                          label: 'Taken',
-                          color: const Color(0xFF00C853), // Vibrant Green
-                        ),
-                        _SummaryItem(
-                          icon: Icons.schedule,
-                          value: '0',
-                          label: 'Pending',
-                          color: const Color(0xFFFF9100), // Vibrant Amber
-                        ),
-                        _SummaryItem(
-                          icon: Icons.cancel,
-                          value: '0',
-                          label: 'Missed',
-                          color: const Color(0xFFFF5252), // Vibrant Red
-                        ),
-                      ],
-                    ),
-                  ],
+              // Quick Actions Title
+              Text(
+                'Quick Actions',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+
+              // Quick Action Grid
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                children: [
+                  _QuickActionCard(
+                    icon: Icons.medication_outlined,
+                    title: 'Drug Directory',
+                    subtitle: 'A-Z Medications',
+                    color: const Color(0xFF2196F3),
+                    onTap: () {
+                      Navigator.pushNamed(context, DiseaseSelectionScreen.route);
+                    },
+                  ),
+                  _QuickActionCard(
+                    icon: Icons.alarm,
+                    title: 'My Medications',
+                    subtitle: 'Set Reminders',
+                    color: const Color(0xFF00C853),
+                    onTap: () async {
+                      await Navigator.pushNamed(context, MyMedicationsScreen.route);
+                      _loadSummary(); // Refresh after returning
+                    },
+                  ),
+                  _QuickActionCard(
+                    icon: Icons.note_add_outlined,
+                    title: 'Log Symptoms',
+                    subtitle: 'Track health',
+                    color: const Color(0xFFFF6D00),
+                    onTap: () {
+                      Navigator.pushNamed(context, SymptomHistoryScreen.route);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  String _formatTime(DateTime time) {
+    final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
   }
 }
 

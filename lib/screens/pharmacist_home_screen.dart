@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 import 'arrival_screen.dart';
 import 'profile_screen.dart';
+import 'send_notification_screen.dart';
 import 'symptom_history_screen.dart';
 
 class PharmacistHomeScreen extends StatefulWidget {
@@ -178,6 +179,19 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
               childAspectRatio: 1.3,
               children: [
                 _buildActionCard(
+                  icon: Icons.notifications_active,
+                  title: 'Send Notification',
+                  color: const Color(0xFFE91E63), // Vibrant Pink
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SendNotificationScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildActionCard(
                   icon: Icons.inventory_2_outlined,
                   title: 'Drug Inventory',
                   color: const Color(0xFF2196F3), // Vibrant Blue
@@ -187,12 +201,6 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                   icon: Icons.receipt_long_outlined,
                   title: 'Prescriptions',
                   color: const Color(0xFF00C853), // Vibrant Green
-                  onTap: () => _showComingSoon(context),
-                ),
-                _buildActionCard(
-                  icon: Icons.support_agent_outlined,
-                  title: 'Customer Support',
-                  color: const Color(0xFFFF6D00), // Vibrant Orange
                   onTap: () => _showComingSoon(context),
                 ),
                 _buildActionCard(
@@ -524,22 +532,48 @@ class _UserMedicationCardState extends State<_UserMedicationCard> {
                     }).toList(),
                   ),
                   const SizedBox(height: 12),
-                  // View Symptoms Button
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SymptomHistoryScreen(userId: widget.user.id),
+                  // Action Buttons Row
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      // View Symptoms Button
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SymptomHistoryScreen(userId: widget.user.id),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.monitor_heart_outlined, size: 16),
+                        label: const Text('View Symptoms'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 12),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.monitor_heart_outlined, size: 16),
-                    label: const Text('View Symptom Logs'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
+                      ),
+                      // Send Notification Button
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SendNotificationScreen(recipient: widget.user),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.notifications, size: 16),
+                        label: const Text('Send Notification'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 12),
+                          backgroundColor: const Color(0xFFE91E63),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
