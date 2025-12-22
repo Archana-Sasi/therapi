@@ -158,6 +158,26 @@ class AuthService {
     }
   }
 
+  /// Updates specific user profile fields in Firestore.
+  Future<void> updateUserProfileFields({
+    required String uid,
+    String? fullName,
+    String? phoneNumber,
+  }) async {
+    try {
+      final updateData = <String, dynamic>{};
+      if (fullName != null) updateData['fullName'] = fullName;
+      if (phoneNumber != null) updateData['phoneNumber'] = phoneNumber;
+      
+      if (updateData.isNotEmpty) {
+        await _firestore.collection('users').doc(uid).update(updateData);
+      }
+    } catch (e) {
+      print('Firestore unavailable: $e');
+      rethrow;
+    }
+  }
+
   /// Gets all users from Firestore (for admin/pharmacist dashboards).
   Future<List<UserModel>> getAllUsers() async {
     try {
@@ -168,6 +188,48 @@ class AuthService {
     } catch (e) {
       print('Firestore unavailable: $e');
       return [];
+    }
+  }
+
+  /// Deletes a user from Firestore (for admin/pharmacist).
+  Future<bool> deleteUser(String userId) async {
+    try {
+      // Delete user document
+      await _firestore.collection('users').doc(userId).delete();
+      
+      // Also delete user's reminders subcollection
+      final remindersSnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('reminders')
+          .get();
+      for (final doc in remindersSnapshot.docs) {
+        await doc.reference.delete();
+      }
+      
+      // Delete user's medication logs subcollection
+      final logsSnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('medication_logs')
+          .get();
+      for (final doc in logsSnapshot.docs) {
+        await doc.reference.delete();
+      }
+      
+      // Delete user's notifications
+      final notificationsSnapshot = await _firestore
+          .collection('notifications')
+          .where('recipientId', isEqualTo: userId)
+          .get();
+      for (final doc in notificationsSnapshot.docs) {
+        await doc.reference.delete();
+      }
+      
+      return true;
+    } catch (e) {
+      print('Failed to delete user: $e');
+      return false;
     }
   }
 

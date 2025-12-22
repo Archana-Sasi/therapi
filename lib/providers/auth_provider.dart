@@ -101,6 +101,28 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateProfile({
+    String? fullName,
+    String? phoneNumber,
+  }) async {
+    final currentUser = _authService.currentUser;
+    if (currentUser == null || _user == null) return;
+
+    _setLoading(true);
+    try {
+      await _authService.updateUserProfileFields(
+        uid: currentUser.uid,
+        fullName: fullName,
+        phoneNumber: phoneNumber,
+      );
+      // Refresh user data after update
+      _user = await _authService.getUserProfile(currentUser.uid);
+    } finally {
+      _setLoading(false);
+    }
+    notifyListeners();
+  }
+
   void _setLoading(bool value) {
     _loading = value;
     notifyListeners();

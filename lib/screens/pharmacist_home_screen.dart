@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 import 'arrival_screen.dart';
+import 'drug_inventory_screen.dart';
 import 'profile_screen.dart';
 import 'send_notification_screen.dart';
 import 'symptom_history_screen.dart';
@@ -195,7 +196,14 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                   icon: Icons.inventory_2_outlined,
                   title: 'Drug Inventory',
                   color: const Color(0xFF2196F3), // Vibrant Blue
-                  onTap: () => _showComingSoon(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DrugInventoryScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _buildActionCard(
                   icon: Icons.receipt_long_outlined,
@@ -265,6 +273,49 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                     user: u,
                     roleColor: _getRoleColor(u.role),
                     roleIcon: _getRoleIcon(u.role),
+                    onDelete: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete User'),
+                          content: Text('Are you sure you want to delete ${u.fullName}? This action cannot be undone.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: TextButton.styleFrom(foregroundColor: Colors.red),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                      
+                      if (confirmed == true) {
+                        final authService = AuthService();
+                        final success = await authService.deleteUser(u.id);
+                        if (mounted) {
+                          if (success) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${u.fullName} has been deleted'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                            _loadUsers(); // Refresh the list
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Failed to delete user'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
                   );
                 },
               ),
@@ -346,11 +397,13 @@ class _UserMedicationCard extends StatefulWidget {
     required this.user,
     required this.roleColor,
     required this.roleIcon,
+    required this.onDelete,
   });
 
   final UserModel user;
   final Color roleColor;
   final IconData roleIcon;
+  final VoidCallback onDelete;
 
   @override
   State<_UserMedicationCard> createState() => _UserMedicationCardState();
@@ -438,6 +491,12 @@ class _UserMedicationCardState extends State<_UserMedicationCard> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Delete Button
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  tooltip: 'Delete User',
+                  onPressed: widget.onDelete,
+                ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,

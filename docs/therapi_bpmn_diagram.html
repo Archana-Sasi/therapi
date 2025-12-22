@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheraPi - Complete BPMN Diagram</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: #fff;
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 24px;
+            color: #1F2937;
+            font-weight: 700;
+        }
+
+        .bpmn-container {
+            border: 2px solid #000;
+            width: 1100px;
+            margin: 0 auto;
+            background: #fff;
+        }
+
+        .pool {
+            display: flex;
+            border-bottom: 2px solid #000;
+            min-height: 130px;
+        }
+
+        .pool:last-child {
+            border-bottom: none;
+        }
+
+        .pool-label {
+            width: 50px;
+            background: #f5f5f5;
+            border-right: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .pool-name {
+            width: 80px;
+            border-right: 2px solid #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            text-align: center;
+            background: #f9f9f9;
+        }
+
+        .pool-name .icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .pool-name .name {
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .lane-content {
+            flex: 1;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* BPMN Elements */
+        .start-event {
+            width: 32px;
+            height: 32px;
+            border: 2px solid #000;
+            border-radius: 50%;
+            background: #fff;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .end-event {
+            width: 32px;
+            height: 32px;
+            border: 4px solid #000;
+            border-radius: 50%;
+            background: #fff;
+            flex-shrink: 0;
+        }
+
+        .task {
+            border: 2px solid #000;
+            border-radius: 8px;
+            padding: 8px 12px;
+            background: #fff;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 500;
+            min-width: 70px;
+            line-height: 1.3;
+            flex-shrink: 0;
+        }
+
+        .gateway {
+            width: 28px;
+            height: 28px;
+            border: 2px solid #000;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            flex-shrink: 0;
+        }
+
+        .gateway span {
+            transform: rotate(-45deg);
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .arrow {
+            width: 25px;
+            height: 2px;
+            background: #000;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .arrow::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left: 7px solid #000;
+        }
+
+        .data-store {
+            width: 45px;
+            height: 35px;
+            border: 2px solid #000;
+            background: #fff;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .data-store::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            border-bottom: 2px solid #000;
+        }
+
+        .data-label {
+            font-size: 9px;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 38px;
+            position: absolute;
+            width: 55px;
+            left: -5px;
+        }
+
+        .parallel-paths {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .path-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .event-label {
+            font-size: 9px;
+            font-weight: 600;
+            position: absolute;
+            top: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+
+        .event-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Message flow dashed line */
+        .message-flow-vertical {
+            position: absolute;
+            left: 145px;
+            height: 60px;
+            border-left: 2px dashed #666;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>TheraPi Application - BPMN Diagram</h1>
+
+    <div class="bpmn-container">
+        <!-- POOL 1: Patient -->
+        <div class="pool">
+            <div class="pool-label">POOL 1</div>
+            <div class="pool-name">
+                <div class="icon">👤</div>
+                <div class="name">Patient</div>
+            </div>
+            <div class="lane-content">
+                <div class="flow">
+                    <div class="event-container">
+                        <div class="start-event"></div>
+                        <span class="event-label">START</span>
+                    </div>
+                    <div class="arrow"></div>
+                    <div class="task">Register/<br>Login</div>
+                    <div class="arrow"></div>
+                    <div class="task">Select<br>Disease</div>
+                    <div class="arrow"></div>
+                    <div class="gateway"><span>X</span></div>
+                    <div class="arrow"></div>
+                    <div class="parallel-paths">
+                        <div class="path-row">
+                            <div class="task">Search A-Z<br>Drug Directory</div>
+                        </div>
+                        <div class="path-row">
+                            <div class="task">View Drug<br>Details</div>
+                        </div>
+                    </div>
+                    <div class="arrow"></div>
+                    <div class="task">Log<br>Symptoms</div>
+                    <div class="arrow"></div>
+                    <div class="task">Take<br>Medication</div>
+                    <div class="arrow"></div>
+                    <div class="event-container">
+                        <div class="end-event"></div>
+                        <span class="event-label">END</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- POOL 2: Mobile App -->
+        <div class="pool">
+            <div class="pool-label">POOL 2</div>
+            <div class="pool-name">
+                <div class="icon">📱</div>
+                <div class="name">Mobile<br>App</div>
+            </div>
+            <div class="lane-content">
+                <div class="flow">
+                    <div class="task">Validate<br>User</div>
+                    <div class="arrow"></div>
+                    <div class="task">Fetch Drug<br>Data</div>
+                    <div class="arrow"></div>
+                    <div class="gateway"><span>+</span></div>
+                    <div class="arrow"></div>
+                    <div class="parallel-paths">
+                        <div class="path-row">
+                            <div class="task">Send<br>Reminders</div>
+                        </div>
+                        <div class="path-row">
+                            <div class="task">Store Data</div>
+                        </div>
+                    </div>
+                    <div class="arrow"></div>
+                    <div class="gateway"><span>+</span></div>
+                    <div class="arrow"></div>
+                    <div style="position: relative;">
+                        <div class="data-store"></div>
+                        <div class="data-label">Firestore</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- POOL 3: Pharmacist -->
+        <div class="pool">
+            <div class="pool-label">POOL 3</div>
+            <div class="pool-name">
+                <div class="icon">💊</div>
+                <div class="name">Pharmacist</div>
+            </div>
+            <div class="lane-content">
+                <div class="flow">
+                    <div class="task">View<br>Adherence<br>Reports</div>
+                    <div class="arrow"></div>
+                    <div class="gateway"><span>X</span></div>
+                    <div class="arrow"></div>
+                    <div class="parallel-paths">
+                        <div class="path-row">
+                            <div class="task">Identify Missed<br>Doses</div>
+                        </div>
+                        <div class="path-row" style="visibility: hidden;">
+                            <div class="task">Placeholder</div>
+                        </div>
+                    </div>
+                    <div class="arrow"></div>
+                    <div class="task">Send<br>Counseling</div>
+                    <div class="arrow"></div>
+                    <div class="event-container">
+                        <div class="end-event"></div>
+                        <span class="event-label">END</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- POOL 4: Admin -->
+        <div class="pool">
+            <div class="pool-label">POOL 4</div>
+            <div class="pool-name">
+                <div class="icon">⚙️</div>
+                <div class="name">Admin</div>
+            </div>
+            <div class="lane-content">
+                <div class="flow">
+                    <div class="task">Monitor<br>Activity</div>
+                    <div class="arrow"></div>
+                    <div class="task">View<br>Analytics</div>
+                    <div class="arrow"></div>
+                    <div class="task">Manage Users<br>& Drugs</div>
+                    <div class="arrow"></div>
+                    <div class="event-container">
+                        <div class="end-event"></div>
+                        <span class="event-label">END</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div style="margin: 30px auto; width: 1100px; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+        <h3 style="text-align: center; margin-bottom: 15px;">BPMN Legend</h3>
+        <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="start-event" style="width: 24px; height: 24px;"></div>
+                <span>Start Event</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="end-event" style="width: 24px; height: 24px;"></div>
+                <span>End Event</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="task" style="padding: 5px 10px; font-size: 10px;">Task</div>
+                <span>Activity</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="gateway" style="width: 20px; height: 20px;"><span style="font-size: 10px;">X</span></div>
+                <span>XOR Gateway</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="gateway" style="width: 20px; height: 20px;"><span style="font-size: 10px;">+</span></div>
+                <span>AND Gateway</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="data-store" style="width: 30px; height: 22px;"></div>
+                <span>Data Store</span>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

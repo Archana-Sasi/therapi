@@ -6,6 +6,7 @@ class UserModel {
     required this.email,
     required this.fullName,
     this.photoUrl,
+    this.phoneNumber,
     this.role = 'patient',
     this.age,
     this.gender,
@@ -16,6 +17,7 @@ class UserModel {
   final String email;
   final String fullName;
   final String? photoUrl;
+  final String? phoneNumber;
   final String role; // patient, pharmacist, admin
   final int? age;
   final String? gender; // male, female, other
@@ -26,6 +28,7 @@ class UserModel {
     String? email,
     String? fullName,
     String? photoUrl,
+    String? phoneNumber,
     String? role,
     int? age,
     String? gender,
@@ -36,6 +39,7 @@ class UserModel {
       email: email ?? this.email,
       fullName: fullName ?? this.fullName,
       photoUrl: photoUrl ?? this.photoUrl,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
       role: role ?? this.role,
       age: age ?? this.age,
       gender: gender ?? this.gender,
@@ -49,6 +53,7 @@ class UserModel {
       'email': email,
       'fullName': fullName,
       'photoUrl': photoUrl,
+      'phoneNumber': phoneNumber,
       'role': role,
       'age': age,
       'gender': gender,
@@ -80,6 +85,7 @@ class UserModel {
       email: map['email'] ?? '',
       fullName: map['fullName'] ?? '',
       photoUrl: map['photoUrl'],
+      phoneNumber: map['phoneNumber'],
       role: map['role'] ?? 'patient',
       age: map['age'] as int?,
       gender: map['gender'] as String?,
@@ -87,5 +93,6 @@ class UserModel {
     );
   }
 }
+
 
 

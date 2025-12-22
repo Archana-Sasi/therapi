@@ -169,8 +169,10 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: NotificationType.values.map((type) {
                   final isSelected = type == _selectedType;
+                  final typeColor = _getTypeColor(type);
                   return ChoiceChip(
                     label: Text(_getTypeLabel(type)),
                     selected: isSelected,
@@ -178,11 +180,20 @@ class _SendNotificationScreenState extends State<SendNotificationScreen> {
                     avatar: Icon(
                       _getTypeIcon(type),
                       size: 18,
-                      color: isSelected ? Colors.white : _getTypeColor(type),
+                      color: isSelected ? Colors.white : typeColor,
                     ),
-                    selectedColor: _getTypeColor(type),
+                    selectedColor: typeColor,
+                    backgroundColor: typeColor.withAlpha(25),
                     labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : null,
+                      color: isSelected ? Colors.white : typeColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    side: BorderSide(
+                      color: isSelected ? typeColor : typeColor.withAlpha(100),
+                      width: 1.5,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   );
                 }).toList(),
