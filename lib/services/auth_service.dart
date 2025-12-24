@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../models/custom_drug.dart';
 import '../models/medication_log.dart';
 import '../models/medication_reminder.dart';
+import '../models/prescription_model.dart';
 import '../models/user_model.dart';
 import '../models/user_notification.dart';
 
@@ -784,6 +786,169 @@ class AuthService {
       return true;
     } catch (e) {
       print('Failed to delete notification: $e');
+      return false;
+    }
+  }
+
+  // ============== CUSTOM DRUG MANAGEMENT ==============
+
+  /// Adds a new custom drug to Firestore
+  Future<bool> addCustomDrug(CustomDrug drug) async {
+    try {
+      final docRef = _firestore.collection('custom_drugs').doc();
+      final drugWithId = drug.copyWith(id: docRef.id);
+      await docRef.set(drugWithId.toMap());
+      return true;
+    } catch (e) {
+      print('Failed to add custom drug: $e');
+      return false;
+    }
+  }
+
+  /// Gets all custom drugs from Firestore
+  Future<List<CustomDrug>> getCustomDrugs() async {
+    try {
+      final snapshot = await _firestore
+          .collection('custom_drugs')
+          .where('isActive', isEqualTo: true)
+          .orderBy('genericName')
+          .get();
+      return snapshot.docs
+          .map((doc) => CustomDrug.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print('Failed to get custom drugs: $e');
+      return [];
+    }
+  }
+
+  /// Updates an existing custom drug
+  Future<bool> updateCustomDrug(CustomDrug drug) async {
+    try {
+      await _firestore
+          .collection('custom_drugs')
+          .doc(drug.id)
+          .update(drug.toMap());
+      return true;
+    } catch (e) {
+      print('Failed to update custom drug: $e');
+      return false;
+    }
+  }
+
+  /// Deletes a custom drug (soft delete - sets isActive to false)
+  Future<bool> deleteCustomDrug(String drugId) async {
+    try {
+      await _firestore
+          .collection('custom_drugs')
+          .doc(drugId)
+          .update({'isActive': false});
+      return true;
+    } catch (e) {
+      print('Failed to delete custom drug: $e');
+      return false;
+    }
+  }
+
+  // ============== PRESCRIPTION MANAGEMENT ==============
+
+  /// Creates a new prescription
+  Future<bool> createPrescription(Prescription prescription) async {
+    try {
+      await _firestore
+          .collection('prescriptions')
+          .doc(prescription.id)
+          .set(prescription.toMap());
+      return true;
+    } catch (e) {
+      print('Failed to create prescription: $e');
+      return false;
+    }
+  }
+
+  /// Gets all prescriptions created by the current pharmacist
+  Future<List<Prescription>> getPrescriptionsByPharmacist() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      final snapshot = await _firestore
+          .collection('prescriptions')
+          .where('pharmacistId', isEqualTo: user.uid)
+          .get();
+      
+      final prescriptions = snapshot.docs
+          .map((doc) => Prescription.fromMap(doc.data()))
+          .toList();
+      
+      // Sort by createdAt descending
+      prescriptions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return prescriptions;
+    } catch (e) {
+      print('Failed to get prescriptions: $e');
+      return [];
+    }
+  }
+
+  /// Gets all prescriptions for a specific patient
+  Future<List<Prescription>> getPrescriptionsForPatient(String patientId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('prescriptions')
+          .where('patientId', isEqualTo: patientId)
+          .get();
+      
+      final prescriptions = snapshot.docs
+          .map((doc) => Prescription.fromMap(doc.data()))
+          .toList();
+      
+      // Sort by createdAt descending
+      prescriptions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return prescriptions;
+    } catch (e) {
+      print('Failed to get patient prescriptions: $e');
+      return [];
+    }
+  }
+
+  /// Updates an existing prescription
+  Future<bool> updatePrescription(Prescription prescription) async {
+    try {
+      await _firestore
+          .collection('prescriptions')
+          .doc(prescription.id)
+          .update(prescription.toMap());
+      return true;
+    } catch (e) {
+      print('Failed to update prescription: $e');
+      return false;
+    }
+  }
+
+  /// Deletes a prescription
+  Future<bool> deletePrescription(String prescriptionId) async {
+    try {
+      await _firestore
+          .collection('prescriptions')
+          .doc(prescriptionId)
+          .delete();
+      return true;
+    } catch (e) {
+      print('Failed to delete prescription: $e');
+      return false;
+    }
+  }
+
+  /// Toggles prescription active status
+  Future<bool> togglePrescriptionActive(String prescriptionId, bool isActive) async {
+    try {
+      await _firestore
+          .collection('prescriptions')
+          .doc(prescriptionId)
+          .update({'isActive': isActive});
+      return true;
+    } catch (e) {
+      print('Failed to toggle prescription: $e');
       return false;
     }
   }

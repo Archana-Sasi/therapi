@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/medication_log.dart';
+import '../models/prescription_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 import 'arrival_screen.dart';
@@ -24,7 +25,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
   Map<String, int> _summary = {'taken': 0, 'pending': 0, 'missed': 0};
   List<MedicationLog> _pendingLogs = [];
+  List<Prescription> _prescriptions = [];
   bool _isLoadingSummary = true;
+  bool _isLoadingPrescriptions = true;
   int _unreadNotifications = 0;
 
   @override
@@ -32,6 +35,24 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadSummary();
     _loadNotificationCount();
+    _loadPrescriptions();
+  }
+
+  Future<void> _loadPrescriptions() async {
+    setState(() => _isLoadingPrescriptions = true);
+    
+    final user = context.read<AuthProvider>().user;
+    if (user != null) {
+      final prescriptions = await _authService.getPrescriptionsForPatient(user.id);
+      if (mounted) {
+        setState(() {
+          _prescriptions = prescriptions.where((p) => p.isActive).toList();
+          _isLoadingPrescriptions = false;
+        });
+      }
+    } else {
+      if (mounted) setState(() => _isLoadingPrescriptions = false);
+    }
   }
 
   Future<void> _loadNotificationCount() async {
@@ -378,6 +399,136 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
+
+              // My Prescriptions Section
+              if (_prescriptions.isNotEmpty || _isLoadingPrescriptions) ...[
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'My Prescriptions',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (_isLoadingPrescriptions)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      IconButton(
+                        icon: const Icon(Icons.refresh, size: 20),
+                        onPressed: _loadPrescriptions,
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (_prescriptions.isEmpty && !_isLoadingPrescriptions)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
+                        child: Text(
+                          'No active prescriptions',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...(_prescriptions.take(5).map((prescription) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF00C853).withAlpha(30),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.receipt_long, color: Color(0xFF00C853)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${prescription.genericName} (${prescription.brandName})',
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      prescription.dosage,
+                                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(Icons.timelapse, size: 14, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Duration: ${prescription.duration}',
+                                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(Icons.person, size: 14, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'By ${prescription.pharmacistName}',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (prescription.instructions.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(Icons.info_outline, size: 14, color: Colors.blue[700]),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      prescription.instructions,
+                                      style: TextStyle(fontSize: 11, color: Colors.blue[700]),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ))),
+              ],
             ],
           ),
         ),

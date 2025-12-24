@@ -141,15 +141,15 @@ class _SymptomHistoryScreenState extends State<SymptomHistoryScreen> {
         centerTitle: true,
       ),
       floatingActionButton: isOwnHistory
-          ? FloatingActionButton.extended(
+          ? FloatingActionButton(
               onPressed: () async {
                 await Navigator.pushNamed(context, SymptomLogScreen.route);
                 _loadSymptomLogs(); // Refresh after logging
               },
-              icon: const Icon(Icons.add),
-              label: const Text('Log Symptoms'),
+              child: const Icon(Icons.add),
             )
           : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _logs.isEmpty
@@ -181,7 +181,7 @@ class _SymptomHistoryScreenState extends State<SymptomHistoryScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                   itemCount: _logs.length,
                   itemBuilder: (context, index) {
                     final log = _logs[index];

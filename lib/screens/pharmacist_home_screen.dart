@@ -9,6 +9,8 @@ import '../services/auth_service.dart';
 import 'arrival_screen.dart';
 import 'drug_inventory_screen.dart';
 import 'profile_screen.dart';
+import 'prescriptions_screen.dart';
+import 'reports_screen.dart';
 import 'send_notification_screen.dart';
 import 'symptom_history_screen.dart';
 
@@ -209,13 +211,23 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                   icon: Icons.receipt_long_outlined,
                   title: 'Prescriptions',
                   color: const Color(0xFF00C853), // Vibrant Green
-                  onTap: () => _showComingSoon(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PrescriptionsScreen()),
+                    );
+                  },
                 ),
                 _buildActionCard(
                   icon: Icons.analytics_outlined,
                   title: 'Reports',
                   color: const Color(0xFF7C4DFF), // Vibrant Purple
-                  onTap: () => _showComingSoon(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ReportsScreen()),
+                    );
+                  },
                 ),
               ],
             ),
@@ -435,45 +447,70 @@ class _UserMedicationCardState extends State<_UserMedicationCard> {
                   : widget.user.email.isNotEmpty 
                       ? widget.user.email
                       : 'Unknown User',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Age and Gender info
-                if (widget.user.age != null || widget.user.gender != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        if (widget.user.age != null)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.cake_outlined, size: 14, color: Colors.grey[600]),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${widget.user.age} yrs',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                              ),
-                            ],
+                // Role badge and Age/Gender info
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      // Role Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: widget.roleColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: widget.roleColor,
+                            width: 1,
                           ),
-                        if (widget.user.gender != null)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.person_outline, size: 14, color: Colors.grey[600]),
-                              const SizedBox(width: 4),
-                              Text(
-                                widget.user.gender!.capitalize(),
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                              ),
-                            ],
+                        ),
+                        child: Text(
+                          widget.user.role.toUpperCase(),
+                          style: TextStyle(
+                            color: widget.roleColor,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
                           ),
-                      ],
-                    ),
+                        ),
+                      ),
+                      if (widget.user.age != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.cake_outlined, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${widget.user.age} yrs',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      if (widget.user.gender != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person_outline, size: 14, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.user.gender!.capitalize(),
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                    ],
                   ),
+                ),
                 if (hasMedications)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
@@ -493,31 +530,11 @@ class _UserMedicationCardState extends State<_UserMedicationCard> {
               children: [
                 // Delete Button
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
                   tooltip: 'Delete User',
                   onPressed: widget.onDelete,
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: widget.roleColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: widget.roleColor,
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    widget.user.role.toUpperCase(),
-                    style: TextStyle(
-                      color: widget.roleColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(8),
                 ),
                 if (hasMedications)
                   IconButton(

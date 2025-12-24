@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../data/drug_data.dart';
+import '../models/custom_drug.dart';
 import '../models/drug_model.dart';
+import '../services/auth_service.dart';
+import '../utils/app_colors.dart';
 import 'drug_detail_screen.dart';
 
 /// Screen showing drugs filtered by a specific disease
@@ -21,14 +24,38 @@ class DrugListScreen extends StatefulWidget {
 
 class _DrugListScreenState extends State<DrugListScreen> {
   final _searchController = TextEditingController();
-  List<DrugModel> _filteredDrugs = [];
-  List<DrugModel> _allDrugs = [];
+  final _authService = AuthService();
+  
+  List<dynamic> _filteredDrugs = [];
+  List<dynamic> _allDrugs = [];
+  List<CustomDrug> _customDrugs = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _allDrugs = DrugData.getDrugsByDisease(widget.diseaseId);
+    _loadDrugs();
+  }
+
+  Future<void> _loadDrugs() async {
+    setState(() => _isLoading = true);
+    
+    // Load static drugs for this disease
+    final staticDrugs = DrugData.getDrugsByDisease(widget.diseaseId);
+    
+    // Load custom drugs from Firestore and filter by disease
+    final allCustomDrugs = await _authService.getCustomDrugs();
+    _customDrugs = allCustomDrugs
+        .where((d) => d.diseases.contains(widget.diseaseId))
+        .toList();
+    
+    // Combine both lists
+    _allDrugs = [...staticDrugs, ..._customDrugs];
     _filteredDrugs = _allDrugs;
+    
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -37,51 +64,61 @@ class _DrugListScreenState extends State<DrugListScreen> {
     super.dispose();
   }
 
+  String _getDrugGenericName(dynamic drug) {
+    if (drug is DrugModel) return drug.genericName;
+    if (drug is CustomDrug) return drug.genericName;
+    return '';
+  }
+
+  List<String> _getDrugBrandNames(dynamic drug) {
+    if (drug is DrugModel) return drug.brandNames;
+    if (drug is CustomDrug) return drug.brandNames;
+    return [];
+  }
+
+  String _getDrugCategory(dynamic drug) {
+    if (drug is DrugModel) return drug.category;
+    if (drug is CustomDrug) return drug.category;
+    return '';
+  }
+
+  String _getDrugDoseForm(dynamic drug) {
+    if (drug is DrugModel) return drug.doseForm;
+    if (drug is CustomDrug) return drug.doseForm;
+    return '';
+  }
+
+  bool _isCustomDrug(dynamic drug) => drug is CustomDrug;
+
   void _filterDrugs(String query) {
     setState(() {
       if (query.isEmpty) {
         _filteredDrugs = _allDrugs;
       } else {
-        _filteredDrugs = DrugData.searchDrugs(query, diseaseId: widget.diseaseId);
+        _filteredDrugs = _allDrugs.where((drug) =>
+            _getDrugGenericName(drug).toLowerCase().contains(query.toLowerCase()) ||
+            _getDrugBrandNames(drug).any((b) => b.toLowerCase().contains(query.toLowerCase()))
+        ).toList();
       }
     });
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'bronchodilator':
-        return const Color(0xFF2196F3); // Blue
-      case 'corticosteroid':
-        return const Color(0xFFFF9100); // Amber
-      case 'anticholinergic':
-        return const Color(0xFF00BFA6); // Teal
-      case 'leukotriene_modifier':
-        return const Color(0xFF7C4DFF); // Purple
-      case 'antihistamine':
-        return const Color(0xFFE91E63); // Pink
-      case 'mucolytic':
-        return const Color(0xFF00C853); // Green
-      case 'combination':
-        return const Color(0xFF3D5AFE); // Indigo
-      case 'antibiotic':
-        return const Color(0xFFFF5252); // Red
-      case 'antifibrotic':
-        return const Color(0xFF795548); // Brown
-      default:
-        return Colors.grey;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.diseaseName),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadDrugs,
+          ),
+        ],
       ),
-      body: Column(
+      body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           // Search Bar
           Padding(
@@ -119,6 +156,24 @@ class _DrugListScreenState extends State<DrugListScreen> {
                   '${_filteredDrugs.length} medication${_filteredDrugs.length == 1 ? '' : 's'} found',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
+                if (_customDrugs.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withAlpha(30),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '+${_customDrugs.length} custom',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.amber[700],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -148,32 +203,62 @@ class _DrugListScreenState extends State<DrugListScreen> {
                     itemCount: _filteredDrugs.length,
                     itemBuilder: (context, index) {
                       final drug = _filteredDrugs[index];
-                      final categoryColor = _getCategoryColor(drug.category);
+                      final genericName = _getDrugGenericName(drug);
+                      final brandNames = _getDrugBrandNames(drug);
+                      final category = _getDrugCategory(drug);
+                      final doseForm = _getDrugDoseForm(drug);
+                      final isCustom = _isCustomDrug(drug);
+                      const drugColor = AppColors.primary;
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
                           contentPadding: const EdgeInsets.all(16),
-                          leading: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: categoryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text(
-                                drug.genericName[0],
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: categoryColor,
+                          leading: Stack(
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: isCustom 
+                                      ? Colors.amber.withAlpha(25)
+                                      : drugColor.withAlpha(25),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    genericName.isNotEmpty ? genericName[0] : '?',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: isCustom ? Colors.amber[700] : drugColor,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              if (isCustom)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 1.5),
+                                    ),
+                                    child: const Icon(
+                                      Icons.star,
+                                      size: 8,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           title: Text(
-                            drug.genericName,
+                            genericName,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -184,7 +269,7 @@ class _DrugListScreenState extends State<DrugListScreen> {
                             children: [
                               const SizedBox(height: 4),
                               Text(
-                                drug.brandNames.join(', '),
+                                brandNames.join(', '),
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontSize: 13,
@@ -201,22 +286,43 @@ class _DrugListScreenState extends State<DrugListScreen> {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: categoryColor.withOpacity(0.1),
+                                      color: drugColor.withAlpha(25),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
-                                      DrugModel.getCategoryDisplayName(drug.category),
+                                      DrugModel.getCategoryDisplayName(category),
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
-                                        color: categoryColor,
+                                        color: drugColor,
                                       ),
                                     ),
                                   ),
+                                  if (isCustom) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amber.withAlpha(30),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'CUSTOM',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.amber[700],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      drug.doseForm,
+                                      doseForm,
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.grey[500],
@@ -231,12 +337,49 @@ class _DrugListScreenState extends State<DrugListScreen> {
                           ),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DrugDetailScreen(drug: drug),
-                              ),
-                            );
+                            if (drug is DrugModel) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DrugDetailScreen(drug: drug),
+                                ),
+                              );
+                            } else if (drug is CustomDrug) {
+                              // Show dialog for custom drugs
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: Text(genericName),
+                                  content: SingleChildScrollView(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('Brands: ${brandNames.join(", ")}'),
+                                        const SizedBox(height: 8),
+                                        Text('Category: ${DrugModel.getCategoryDisplayName(category)}'),
+                                        const SizedBox(height: 8),
+                                        Text('Dose Form: $doseForm'),
+                                        if (drug.description.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Text('Description: ${drug.description}'),
+                                        ],
+                                        if (drug.dosage != null) ...[
+                                          const SizedBox(height: 8),
+                                          Text('Dosage: ${drug.dosage}'),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Close'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
                           },
                         ),
                       );
