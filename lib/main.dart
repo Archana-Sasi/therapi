@@ -4,13 +4,17 @@ import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
 import 'screens/admin_home_screen.dart';
+import 'screens/analytics_screen.dart';
 import 'screens/arrival_screen.dart';
 import 'screens/disease_selection_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/manage_users_screen.dart';
 import 'screens/my_medications_screen.dart';
 import 'screens/pharmacist_home_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/reports_screen.dart';
+import 'screens/settings_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/symptom_history_screen.dart';
 import 'screens/symptom_log_screen.dart';
@@ -344,10 +348,14 @@ class MyApp extends StatelessWidget {
           ProfileScreen.route: (_) => const ProfileScreen(),
           PharmacistHomeScreen.route: (_) => const PharmacistHomeScreen(),
           AdminHomeScreen.route: (_) => const AdminHomeScreen(),
+          AnalyticsScreen.route: (_) => const AnalyticsScreen(),
+          ManageUsersScreen.route: (_) => const ManageUsersScreen(),
           DiseaseSelectionScreen.route: (_) => const DiseaseSelectionScreen(),
           MyMedicationsScreen.route: (_) => const MyMedicationsScreen(),
           SymptomLogScreen.route: (_) => const SymptomLogScreen(),
           SymptomHistoryScreen.route: (_) => const SymptomHistoryScreen(),
+          SettingsScreen.route: (_) => const SettingsScreen(),
+          ReportsScreen.route: (_) => const ReportsScreen(),
         },
       ),
     );

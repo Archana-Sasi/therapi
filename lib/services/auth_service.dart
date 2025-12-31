@@ -235,6 +235,19 @@ class AuthService {
     }
   }
 
+  /// Updates a user's role in Firestore (for admin).
+  Future<bool> updateUserRole(String userId, String newRole) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'role': newRole,
+      });
+      return true;
+    } catch (e) {
+      print('Failed to update user role: $e');
+      return false;
+    }
+  }
+
   /// Adds a medication with brand to the current user's medication list.
   Future<bool> addMedication(String drugId, String brandName) async {
     final user = _auth.currentUser;

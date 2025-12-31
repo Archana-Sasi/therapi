@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:open_file/open_file.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/auth_provider.dart';
+import '../services/data_export_service.dart';
 import '../utils/app_colors.dart';
 
 class PrivacySecurityScreen extends StatefulWidget {
@@ -230,7 +234,9 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             Text('Download Data'),
           ],
         ),
-        content: const Text('Your data will be prepared and sent to your email within 24 hours.'),
+        content: const Text(
+          'Export your health data as a PDF file. This includes your profile, medications, reminders, symptoms, and prescriptions.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -239,22 +245,138 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Data request submitted!'),
-                  backgroundColor: Color(0xFF10B981),
-                ),
-              );
+              _downloadData();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF3B82F6),
             ),
-            child: const Text('Request', style: TextStyle(color: Colors.white)),
+            child: const Text('Download Now', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
+
+  Future<void> _downloadData() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(color: Color(0xFF6366F1)),
+            SizedBox(width: 20),
+            Expanded(child: Text('Generating your health report...')),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+
+      if (user == null) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please log in to download your data.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final exportService = DataExportService();
+      final filePath = await exportService.exportUserDataAsPdf(user);
+
+      Navigator.pop(context); // Close loading dialog
+
+      if (filePath != null) {
+        // Show success dialog with option to open file
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Color(0xFF10B981)),
+                SizedBox(width: 12),
+                Text('Download Complete!'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Your health data has been saved as a PDF file.'),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.folder, color: Color(0xFF3B82F6)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          filePath,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  OpenFile.open(filePath);
+                },
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('Open File'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to generate PDF. Please check storage permissions.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
 
   void _showDeleteAccountDialog() {
     showDialog(

@@ -6,8 +6,12 @@ import '../models/drug_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import 'analytics_screen.dart';
 import 'arrival_screen.dart';
+import 'manage_users_screen.dart';
 import 'profile_screen.dart';
+import 'reports_screen.dart';
+import 'settings_screen.dart';
 import 'symptom_history_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
@@ -32,9 +36,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   Future<void> _loadUsers() async {
     final authService = AuthService();
     final users = await authService.getAllUsers();
+    // Get current user ID to exclude from the list
+    final currentUserId = context.read<AuthProvider>().user?.id;
     if (mounted) {
       setState(() {
-        _users = users;
+        // Filter out the current admin user from the list
+        _users = users.where((u) => u.id != currentUserId).toList();
         _isLoading = false;
       });
     }
@@ -49,7 +56,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
         centerTitle: true,
-        backgroundColor: const Color(0xFFFFEBEE), // Light vibrant red
+        backgroundColor: const Color(0xFFD32F2F), // Vibrant red for visibility
+        foregroundColor: Colors.white, // White text and icons
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -57,14 +65,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               onTap: () => Navigator.pushNamed(context, ProfileScreen.route),
               child: CircleAvatar(
                 radius: 18,
-                backgroundColor: theme.colorScheme.primaryContainer,
+                backgroundColor: Colors.white.withOpacity(0.2),
                 backgroundImage:
                     user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
                 child: user?.photoUrl == null
-                    ? Icon(
+                    ? const Icon(
                         Icons.person,
                         size: 20,
-                        color: theme.colorScheme.onPrimaryContainer,
+                        color: Colors.white,
                       )
                     : null,
               ),
@@ -208,25 +216,25 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   icon: Icons.people_outline,
                   title: 'Manage Users',
                   color: const Color(0xFF2196F3), // Vibrant Blue
-                  onTap: () => _showComingSoon(context),
+                  onTap: () => Navigator.pushNamed(context, ManageUsersScreen.route),
                 ),
                 _buildActionCard(
                   icon: Icons.analytics_outlined,
                   title: 'Analytics',
                   color: const Color(0xFF00C853), // Vibrant Green
-                  onTap: () => _showComingSoon(context),
+                  onTap: () => Navigator.pushNamed(context, AnalyticsScreen.route),
                 ),
                 _buildActionCard(
                   icon: Icons.settings_outlined,
                   title: 'Settings',
                   color: const Color(0xFFFF6D00), // Vibrant Orange
-                  onTap: () => _showComingSoon(context),
+                  onTap: () => Navigator.pushNamed(context, SettingsScreen.route),
                 ),
                 _buildActionCard(
                   icon: Icons.assessment_outlined,
                   title: 'Reports',
                   color: const Color(0xFF7C4DFF), // Vibrant Purple
-                  onTap: () => _showComingSoon(context),
+                  onTap: () => Navigator.pushNamed(context, ReportsScreen.route),
                 ),
               ],
             ),
