@@ -108,15 +108,6 @@ class HelpSupportScreen extends StatelessWidget {
                     onTap: () => _launchPhone(context),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildQuickAction(
-                    icon: Icons.chat_outlined,
-                    label: 'Live Chat',
-                    color: const Color(0xFFF59E0B),
-                    onTap: () => _showComingSoon(context, 'Live Chat'),
-                  ),
-                ),
               ],
             ),
 

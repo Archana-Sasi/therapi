@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../data/drug_data.dart';
 import '../models/drug_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../services/data_export_service.dart';
 import 'arrival_screen.dart';
 import 'drug_inventory_screen.dart';
 import 'profile_screen.dart';
@@ -649,6 +651,18 @@ class _UserMedicationCardState extends State<_UserMedicationCard> {
                           foregroundColor: Colors.white,
                         ),
                       ),
+                      // Download Report Button
+                      ElevatedButton.icon(
+                        onPressed: () => _downloadPatientReport(context, widget.user),
+                        icon: const Icon(Icons.download, size: 16),
+                        label: const Text('Download Report'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 12),
+                          backgroundColor: const Color(0xFF7C4DFF),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -657,6 +671,64 @@ class _UserMedicationCardState extends State<_UserMedicationCard> {
         ],
       ),
     );
+  }
+
+  /// Download patient health report as PDF
+  Future<void> _downloadPatientReport(BuildContext context, UserModel patient) async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Generating Report...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final exportService = DataExportService();
+      final filePath = await exportService.exportUserDataAsPdf(patient);
+      
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      
+      if (filePath != null) {
+        // Share the PDF file
+        await Share.shareXFiles(
+          [XFile(filePath)],
+          subject: 'Health Report - ${patient.fullName}',
+          text: 'Patient Health Report for ${patient.fullName}',
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to generate report'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

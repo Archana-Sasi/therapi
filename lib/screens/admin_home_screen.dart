@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../data/drug_data.dart';
 import '../models/drug_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../services/data_export_service.dart';
 import 'analytics_screen.dart';
 import 'arrival_screen.dart';
 import 'manage_users_screen.dart';
@@ -586,22 +588,44 @@ class _UserMedicationCardState extends State<_UserMedicationCard> {
                     }).toList(),
                   ),
                   const SizedBox(height: 12),
-                  // View Symptoms Button
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SymptomHistoryScreen(userId: widget.user.id),
+                  // Action Buttons Row
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      // View Symptoms Button
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SymptomHistoryScreen(userId: widget.user.id),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.monitor_heart_outlined, size: 16),
+                        label: const Text('View Symptom Logs'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          textStyle: const TextStyle(fontSize: 12),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.monitor_heart_outlined, size: 16),
-                    label: const Text('View Symptom Logs'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
+                      ),
+                      // Download Report Button (for patients and pharmacists)
+                      if (widget.user.role == 'patient' || widget.user.role == 'pharmacist')
+                        ElevatedButton.icon(
+                          onPressed: () => _downloadUserReport(context, widget.user),
+                          icon: const Icon(Icons.download, size: 16),
+                          label: Text(widget.user.role == 'pharmacist' ? 'Download Activity' : 'Download Report'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            textStyle: const TextStyle(fontSize: 12),
+                            backgroundColor: widget.user.role == 'pharmacist' 
+                                ? const Color(0xFF00897B)  // Teal for pharmacist
+                                : const Color(0xFF7C4DFF), // Purple for patient
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -609,6 +633,82 @@ class _UserMedicationCardState extends State<_UserMedicationCard> {
         ],
       ),
     );
+  }
+
+  /// Download user report as PDF (health report for patients, activity report for pharmacists)
+  Future<void> _downloadUserReport(BuildContext context, UserModel user) async {
+    final isPharmacist = user.role == 'pharmacist';
+    
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: isPharmacist ? const Color(0xFF00897B) : const Color(0xFF7C4DFF),
+                ),
+                const SizedBox(height: 16),
+                Text(isPharmacist ? 'Generating Activity Report...' : 'Generating Health Report...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final exportService = DataExportService();
+      String? filePath;
+      
+      // Use appropriate export method based on role
+      if (isPharmacist) {
+        filePath = await exportService.exportPharmacistDataAsPdf(user);
+      } else {
+        filePath = await exportService.exportUserDataAsPdf(user);
+      }
+      
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading dialog
+      
+      if (filePath != null) {
+        // Share the PDF file
+        final subject = isPharmacist 
+            ? 'Activity Report - ${user.fullName}'
+            : 'Health Report - ${user.fullName}';
+        final text = isPharmacist
+            ? 'Pharmacist Activity Report for ${user.fullName}'
+            : 'Patient Health Report for ${user.fullName}';
+            
+        await Share.shareXFiles(
+          [XFile(filePath)],
+          subject: subject,
+          text: text,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to generate report'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

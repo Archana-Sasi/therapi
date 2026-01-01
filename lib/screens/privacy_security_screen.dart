@@ -16,8 +16,6 @@ class PrivacySecurityScreen extends StatefulWidget {
 }
 
 class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
-  bool _biometricEnabled = false;
-  bool _twoFactorEnabled = false;
   bool _dataSharing = true;
   bool _analyticsEnabled = true;
 
@@ -49,28 +47,6 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             _buildSectionHeader('🔐 Security', const Color(0xFF6366F1)),
             const SizedBox(height: 12),
             _buildSettingCard(
-              icon: Icons.fingerprint,
-              iconColor: const Color(0xFF10B981),
-              title: 'Biometric Authentication',
-              subtitle: 'Use fingerprint or face ID to login',
-              trailing: Switch(
-                value: _biometricEnabled,
-                onChanged: (value) => setState(() => _biometricEnabled = value),
-                activeColor: const Color(0xFF10B981),
-              ),
-            ),
-            _buildSettingCard(
-              icon: Icons.security,
-              iconColor: const Color(0xFF3B82F6),
-              title: 'Two-Factor Authentication',
-              subtitle: 'Add extra security to your account',
-              trailing: Switch(
-                value: _twoFactorEnabled,
-                onChanged: (value) => setState(() => _twoFactorEnabled = value),
-                activeColor: const Color(0xFF3B82F6),
-              ),
-            ),
-            _buildSettingCard(
               icon: Icons.lock_outline,
               iconColor: const Color(0xFF8B5CF6),
               title: 'Change Password',
@@ -82,28 +58,28 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             const SizedBox(height: 24),
 
             // Privacy Section
-            _buildSectionHeader('🛡️ Privacy', const Color(0xFF10B981)),
+            _buildSectionHeader('🛡️ Privacy', const Color(0xFFA78BFA)),
             const SizedBox(height: 12),
             _buildSettingCard(
               icon: Icons.share_outlined,
-              iconColor: const Color(0xFFF59E0B),
+              iconColor: const Color(0xFFA78BFA),
               title: 'Data Sharing with Pharmacist',
               subtitle: 'Allow pharmacist to view your health data',
               trailing: Switch(
                 value: _dataSharing,
                 onChanged: (value) => setState(() => _dataSharing = value),
-                activeColor: const Color(0xFFF59E0B),
+                activeColor: const Color(0xFFA78BFA),
               ),
             ),
             _buildSettingCard(
               icon: Icons.analytics_outlined,
-              iconColor: const Color(0xFFEC4899),
+              iconColor: const Color(0xFFC4B5FD),
               title: 'Analytics & Crash Reports',
               subtitle: 'Help us improve the app',
               trailing: Switch(
                 value: _analyticsEnabled,
                 onChanged: (value) => setState(() => _analyticsEnabled = value),
-                activeColor: const Color(0xFFEC4899),
+                activeColor: const Color(0xFFC4B5FD),
               ),
             ),
             
@@ -223,19 +199,62 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
   }
 
   void _showDownloadDataDialog() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    final isPatient = user?.role == 'patient';
+    final isPharmacist = user?.role == 'pharmacist';
+
+    String title = 'Download Data';
+    String description = '';
+    
+    if (isPatient) {
+      description = 'Export your health data as a PDF file. This includes your profile, medications, reminders, symptoms, and prescriptions.';
+    } else if (isPharmacist) {
+      description = 'Export your prescription activity as a PDF file. This includes all prescriptions you have issued to patients.';
+    } else {
+      // Admin
+      description = 'Export your account information and activity data as a PDF file.';
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.download_outlined, color: Color(0xFF3B82F6)),
-            SizedBox(width: 12),
-            Text('Download Data'),
+            Icon(Icons.download_outlined, color: isPharmacist ? const Color(0xFF00897B) : const Color(0xFF3B82F6)),
+            const SizedBox(width: 12),
+            Text(title),
           ],
         ),
-        content: const Text(
-          'Export your health data as a PDF file. This includes your profile, medications, reminders, symptoms, and prescriptions.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(description),
+            if (isPharmacist) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F2F1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Color(0xFF00897B), size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Your report will include patient names, medications, dosages, and dates.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF00695C)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
         actions: [
           TextButton(
@@ -248,7 +267,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
               _downloadData();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF3B82F6),
+              backgroundColor: isPharmacist ? const Color(0xFF00897B) : const Color(0xFF3B82F6),
             ),
             child: const Text('Download Now', style: TextStyle(color: Colors.white)),
           ),
@@ -258,25 +277,26 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
   }
 
   Future<void> _downloadData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    final isPharmacist = user?.role == 'pharmacist';
+    
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const AlertDialog(
+      builder: (context) => AlertDialog(
         content: Row(
           children: [
-            CircularProgressIndicator(color: Color(0xFF6366F1)),
-            SizedBox(width: 20),
-            Expanded(child: Text('Generating your health report...')),
+            CircularProgressIndicator(color: isPharmacist ? const Color(0xFF00897B) : const Color(0xFF6366F1)),
+            const SizedBox(width: 20),
+            Expanded(child: Text(isPharmacist ? 'Generating your activity report...' : 'Generating your health report...')),
           ],
         ),
       ),
     );
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final user = authProvider.user;
-
       if (user == null) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -289,7 +309,14 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
       }
 
       final exportService = DataExportService();
-      final filePath = await exportService.exportUserDataAsPdf(user);
+      String? filePath;
+      
+      // Use appropriate export method based on role
+      if (isPharmacist) {
+        filePath = await exportService.exportPharmacistDataAsPdf(user);
+      } else {
+        filePath = await exportService.exportUserDataAsPdf(user);
+      }
 
       Navigator.pop(context); // Close loading dialog
 
@@ -324,7 +351,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          filePath,
+                          filePath!,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade700,
@@ -346,7 +373,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  OpenFile.open(filePath);
+                  OpenFile.open(filePath!);
                 },
                 icon: const Icon(Icons.open_in_new, size: 18),
                 label: const Text('Open File'),

@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
   Map<String, int> _summary = {'taken': 0, 'pending': 0, 'missed': 0};
   List<MedicationLog> _pendingLogs = [];
+  List<MedicationLog> _overdueLogs = [];
   List<Prescription> _prescriptions = [];
   bool _isLoadingSummary = true;
   bool _isLoadingPrescriptions = true;
@@ -71,15 +72,29 @@ class _HomeScreenState extends State<HomeScreen> {
     // Get summary and pending logs
     final summary = await _authService.getTodaysSummary();
     final logs = await _authService.getTodaysMedicationLogs();
+    final now = DateTime.now();
+    
+    // Split into upcoming (future) and overdue (past but still pending)
     final pendingLogs = logs.where((log) => 
       log.status == MedicationStatus.pending && 
-      !DateTime.now().isAfter(log.scheduledTime)
+      !now.isAfter(log.scheduledTime)
     ).toList();
+    
+    final overdueLogs = logs.where((log) => 
+      log.status == MedicationStatus.pending && 
+      now.isAfter(log.scheduledTime)
+    ).toList();
+    
+    // Sort pending by scheduled time (soonest first)
+    pendingLogs.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+    // Sort overdue by scheduled time (most recent first)
+    overdueLogs.sort((a, b) => b.scheduledTime.compareTo(a.scheduledTime));
     
     if (mounted) {
       setState(() {
         _summary = summary;
         _pendingLogs = pendingLogs;
+        _overdueLogs = overdueLogs;
         _isLoadingSummary = false;
       });
     }
@@ -313,6 +328,57 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Overdue Medications (past scheduled time but still pending)
+              if (_overdueLogs.isNotEmpty) ...[
+                Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.red[400], size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Overdue Medications',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red[700],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ...(_overdueLogs.take(5).map((log) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  color: Colors.red.shade50,
+                  child: ListTile(
+                    leading: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.medication, color: Colors.red[700]),
+                    ),
+                    title: Text(
+                      log.brandName.isNotEmpty ? log.brandName : log.drugId,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: Text(
+                      'Was due: ${_formatTime(log.scheduledTime)}',
+                      style: TextStyle(color: Colors.red[400], fontSize: 12),
+                    ),
+                    trailing: ElevatedButton(
+                      onPressed: () => _markAsTaken(log),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      child: const Text('Take Now'),
+                    ),
+                  ),
+                ))),
+                const SizedBox(height: 16),
+              ],
 
               // Upcoming Medications
               if (_pendingLogs.isNotEmpty) ...[

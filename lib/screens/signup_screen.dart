@@ -146,11 +146,26 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // App Icon
-                Icon(
-                  Icons.health_and_safety,
-                  size: 80,
-                  color: theme.colorScheme.primary,
+                // App Icon - Using the actual app logo
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withOpacity(0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Image.asset(
+                    'assets/images/lung_logo.png',
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.contain,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
