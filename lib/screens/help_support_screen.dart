@@ -143,21 +143,14 @@ class HelpSupportScreen extends StatelessWidget {
               title: 'User Guide',
               subtitle: 'Learn how to use all features',
               color: const Color(0xFF6366F1),
-              onTap: () => _showComingSoon(context, 'User Guide'),
-            ),
-            _buildResourceCard(
-              icon: Icons.video_library_outlined,
-              title: 'Video Tutorials',
-              subtitle: 'Watch step-by-step guides',
-              color: const Color(0xFFEC4899),
-              onTap: () => _showComingSoon(context, 'Video Tutorials'),
+              onTap: () => _launchUrl(context, 'https://www.lung.org/lung-health-diseases/lung-disease-lookup/copd/living-with-copd'),
             ),
             _buildResourceCard(
               icon: Icons.article_outlined,
               title: 'Health Articles',
               subtitle: 'Read about respiratory health',
               color: const Color(0xFF10B981),
-              onTap: () => _showComingSoon(context, 'Health Articles'),
+              onTap: () => _launchUrl(context, 'https://www.who.int/news-room/fact-sheets/detail/chronic-obstructive-pulmonary-disease-(copd)'),
             ),
 
             const SizedBox(height: 32),
@@ -327,7 +320,8 @@ class HelpSupportScreen extends StatelessWidget {
   void _launchEmail(BuildContext context) async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
-      path: 'support@respiricare.com',
+      path: 'respiricare12@gmail.com',
+      
       queryParameters: {
         'subject': 'RespiriCare Support Request',
       },
@@ -345,6 +339,21 @@ class HelpSupportScreen extends StatelessWidget {
       await launchUrl(phoneUri);
     } catch (_) {
       _showComingSoon(context, 'Phone');
+    }
+  }
+
+  void _launchUrl(BuildContext context, String url) async {
+    try {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not open the link'),
+          backgroundColor: Colors.red.shade400,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 
