@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
-import 'screens/admin_home_screen.dart';
+import 'providers/language_provider.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/arrival_screen.dart';
 import 'screens/disease_selection_screen.dart';
@@ -16,6 +16,8 @@ import 'screens/profile_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/signup_screen.dart';
+import 'screens/otp_screen.dart';
+import 'screens/complete_profile_screen.dart';
 import 'screens/symptom_history_screen.dart';
 import 'screens/symptom_log_screen.dart';
 import 'services/auth_service.dart';
@@ -39,6 +41,9 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authService: authService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => LanguageProvider(),
         ),
       ],
       child: MaterialApp(
@@ -347,7 +352,6 @@ class MyApp extends StatelessWidget {
           HomeScreen.route: (_) => const HomeScreen(),
           ProfileScreen.route: (_) => const ProfileScreen(),
           PharmacistHomeScreen.route: (_) => const PharmacistHomeScreen(),
-          AdminHomeScreen.route: (_) => const AdminHomeScreen(),
           AnalyticsScreen.route: (_) => const AnalyticsScreen(),
           ManageUsersScreen.route: (_) => const ManageUsersScreen(),
           DiseaseSelectionScreen.route: (_) => const DiseaseSelectionScreen(),
@@ -356,6 +360,7 @@ class MyApp extends StatelessWidget {
           SymptomHistoryScreen.route: (_) => const SymptomHistoryScreen(),
           SettingsScreen.route: (_) => const SettingsScreen(),
           ReportsScreen.route: (_) => const ReportsScreen(),
+          CompleteProfileScreen.route: (_) => const CompleteProfileScreen(),
         },
       ),
     );

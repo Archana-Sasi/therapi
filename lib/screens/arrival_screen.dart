@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import 'admin_home_screen.dart';
+import 'complete_profile_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'pharmacist_home_screen.dart';
@@ -13,14 +13,16 @@ class ArrivalScreen extends StatelessWidget {
 
   static const route = '/';
 
-  void _navigateByRole(BuildContext context, String role) {
+  void _navigateByRole(BuildContext context, String role, bool needsProfileCompletion) {
+    if (needsProfileCompletion) {
+      Navigator.pushReplacementNamed(context, CompleteProfileScreen.route);
+      return;
+    }
+    
     String route;
     switch (role) {
       case 'pharmacist':
         route = PharmacistHomeScreen.route;
-        break;
-      case 'admin':
-        route = AdminHomeScreen.route;
         break;
       default:
         route = HomeScreen.route;
@@ -83,7 +85,7 @@ class ArrivalScreen extends StatelessWidget {
     // Auto-navigate if already logged in
     if (auth.isLoggedIn) {
       Future.microtask(() {
-        _navigateByRole(context, auth.user?.role ?? 'patient');
+        _navigateByRole(context, auth.user?.role ?? 'patient', auth.needsProfileCompletion);
       });
       return Scaffold(
         body: Container(
@@ -207,6 +209,7 @@ class ArrivalScreen extends StatelessWidget {
     );
   }
 }
+
 
 
 

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../data/drug_data.dart';
+import '../data/tamil_translations.dart';
 import '../models/custom_drug.dart';
 import '../models/drug_model.dart';
+import '../providers/language_provider.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
 import 'add_drug_screen.dart';
 import 'drug_detail_screen.dart';
+import 'medicine_search_screen.dart';
 
 /// Drug Inventory Screen for Pharmacists to view all medications
 class DrugInventoryScreen extends StatefulWidget {
@@ -27,16 +31,10 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
   String _selectedCategory = 'all';
   bool _isLoading = true;
   
-  // Categories for filtering - same as patient Drug Directory diseases
+  // Simple filter - just All drugs or Custom drugs added by pharmacist
   final List<Map<String, dynamic>> _categories = [
-    {'id': 'all', 'name': 'All', 'icon': Icons.apps},
-    {'id': 'asthma', 'name': 'Asthma', 'icon': Icons.air},
-    {'id': 'copd', 'name': 'COPD', 'icon': Icons.smoke_free},
-    {'id': 'bronchitis', 'name': 'Bronchitis', 'icon': Icons.healing},
-    {'id': 'allergic_rhinitis', 'name': 'Allergic Rhinitis', 'icon': Icons.grass},
-    {'id': 'ild', 'name': 'ILD', 'icon': Icons.blur_on},
-    {'id': 'pneumonia', 'name': 'Pneumonia', 'icon': Icons.coronavirus},
-    {'id': 'custom', 'name': 'Custom', 'icon': Icons.star},
+    {'id': 'all', 'name': 'All Drugs', 'icon': Icons.medication},
+    {'id': 'custom', 'name': 'Custom Added', 'icon': Icons.star},
   ];
 
   @override
@@ -101,13 +99,10 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
     setState(() {
       List<dynamic> drugs;
       
-      if (_selectedCategory == 'all') {
-        drugs = _allDrugs;
-      } else if (_selectedCategory == 'custom') {
+      if (_selectedCategory == 'custom') {
         drugs = _customDrugs;
       } else {
-        // Filter by disease instead of category
-        drugs = _allDrugs.where((d) => _getDrugDiseases(d).contains(_selectedCategory)).toList();
+        drugs = _allDrugs;
       }
       
       if (query.isEmpty) {
@@ -125,24 +120,35 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
     setState(() {
       _selectedCategory = category;
       _searchController.clear();
-      if (category == 'all') {
-        _filteredDrugs = _allDrugs;
-      } else if (category == 'custom') {
+      if (category == 'custom') {
         _filteredDrugs = _customDrugs;
       } else {
-        // Filter by disease instead of category
-        _filteredDrugs = _allDrugs.where((d) => _getDrugDiseases(d).contains(category)).toList();
+        _filteredDrugs = _allDrugs;
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final langProvider = context.watch<LanguageProvider>();
+    final isTamil = langProvider.isTamil;
+    String t(String english) => isTamil ? TamilTranslations.getLabel(english) : english;
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Drug Inventory'),
+        title: Text(t('Drug Inventory')),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search Full Database',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MedicineSearchScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadDrugs,

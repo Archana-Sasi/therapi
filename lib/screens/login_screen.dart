@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import 'admin_home_screen.dart';
 import 'home_screen.dart';
 import 'pharmacist_home_screen.dart';
 import 'signup_screen.dart';
@@ -35,57 +34,38 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'pharmacist':
         route = PharmacistHomeScreen.route;
         break;
-      case 'admin':
-        route = AdminHomeScreen.route;
-        break;
       default:
         route = HomeScreen.route;
     }
     Navigator.pushReplacementNamed(context, route);
   }
 
-  /// Converts Firebase error messages to user-friendly text
-  String _getFriendlyErrorMessage(dynamic error) {
-    final errorString = error.toString().toLowerCase();
-    
-    if (errorString.contains('invalid-credential') || 
-        errorString.contains('wrong-password') ||
-        errorString.contains('invalid-email')) {
-      return 'Invalid email or password. Please try again.';
-    } else if (errorString.contains('user-not-found')) {
-      return 'No account found with this email.';
-    } else if (errorString.contains('user-disabled')) {
-      return 'This account has been disabled.';
-    } else if (errorString.contains('too-many-requests')) {
-      return 'Too many failed attempts. Please try again later.';
-    } else if (errorString.contains('network')) {
-      return 'Network error. Please check your connection.';
-    } else if (errorString.contains('email-already-in-use')) {
-      return 'This email is already registered.';
-    } else if (errorString.contains('weak-password')) {
-      return 'Password is too weak. Use at least 6 characters.';
-    } else if (errorString.contains('cancelled')) {
-      return 'Sign in was cancelled.';
-    }
-    
-    return 'Something went wrong. Please try again.';
-  }
-
-  Future<void> _submit() async {
+  Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
+
     final auth = context.read<AuthProvider>();
     try {
       await auth.login(
         _emailController.text.trim(),
-        _passwordController.text.trim(),
+        _passwordController.text,
       );
       if (!mounted) return;
       _navigateByRole(auth.user?.role ?? 'patient');
     } catch (e) {
       if (!mounted) return;
+      String message = 'Login failed';
+      if (e.toString().contains('user-not-found')) {
+        message = 'No account found with this email';
+      } else if (e.toString().contains('wrong-password')) {
+        message = 'Incorrect password';
+      } else if (e.toString().contains('invalid-email')) {
+        message = 'Invalid email format';
+      } else if (e.toString().contains('too-many-requests')) {
+        message = 'Too many attempts. Try again later.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_getFriendlyErrorMessage(e)),
+          content: Text(message),
           backgroundColor: Colors.red,
         ),
       );
@@ -100,9 +80,13 @@ class _LoginScreenState extends State<LoginScreen> {
       _navigateByRole(auth.user?.role ?? 'patient');
     } catch (e) {
       if (!mounted) return;
+      String message = 'Sign in failed';
+      if (e.toString().contains('cancelled')) {
+        message = 'Sign in was cancelled';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_getFriendlyErrorMessage(e)),
+          content: Text(message),
           backgroundColor: Colors.red,
         ),
       );
@@ -111,10 +95,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _forgotPassword() async {
     final email = _emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
+    if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid email first'),
+          content: Text('Please enter your email address first'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -135,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_getFriendlyErrorMessage(e)),
+          content: Text('Error: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -160,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // App Icon - Using the actual app logo
+                // App Icon
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -187,6 +171,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Login to your account',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[600],
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -219,17 +210,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
+                    prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
                       ),
                       onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
+                        setState(() => _obscurePassword = !_obscurePassword);
                       },
                     ),
                     border: OutlineInputBorder(
@@ -242,11 +229,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       return 'Password is required';
                     }
                     if (value.length < 6) {
-                      return 'At least 6 characters';
+                      return 'Password must be at least 6 characters';
                     }
                     return null;
                   },
                 ),
+                const SizedBox(height: 8),
 
                 // Forgot Password
                 Align(
@@ -256,7 +244,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text('Forgot Password?'),
                   ),
                 ),
-
                 const SizedBox(height: 16),
 
                 // Login Button
@@ -264,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 50,
                   child: FilledButton.icon(
-                    onPressed: isLoading ? null : _submit,
+                    onPressed: isLoading ? null : _login,
                     icon: isLoading
                         ? const SizedBox(
                             width: 18,

@@ -3,12 +3,16 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/drug_data.dart';
+import '../models/chat_conversation.dart';
 import '../models/drug_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 import '../services/data_export_service.dart';
 import 'arrival_screen.dart';
+import 'chat_screen.dart';
+import 'consultations_screen.dart';
+import 'conversations_screen.dart';
 import 'drug_inventory_screen.dart';
 import 'profile_screen.dart';
 import 'prescriptions_screen.dart';
@@ -26,19 +30,39 @@ class PharmacistHomeScreen extends StatefulWidget {
 }
 
 class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
+  final _authService = AuthService();
   List<UserModel> _users = [];
+  List<ChatConversation> _recentChats = [];
+  int _totalUnreadChats = 0;
   bool _isLoading = true;
+  bool _isLoadingChats = true;
 
   @override
   void initState() {
     super.initState();
     _loadUsers();
+    _loadRecentChats();
+  }
+
+  Future<void> _loadRecentChats() async {
+    setState(() => _isLoadingChats = true);
+    final conversations = await _authService.getUserConversations();
+    if (mounted) {
+      // Calculate total unread from ALL conversations
+      final totalUnread = conversations.fold<int>(
+        0, (sum, chat) => sum + chat.unreadPharmacist,
+      );
+      setState(() {
+        _recentChats = conversations.take(3).toList(); // Show max 3 recent chats
+        _totalUnreadChats = totalUnread;
+        _isLoadingChats = false;
+      });
+    }
   }
 
   Future<void> _loadUsers() async {
-    final authService = AuthService();
-    final allUsers = await authService.getAllUsers();
-    final currentUser = authService.currentUser;
+    final allUsers = await _authService.getAllUsers();
+    final currentUser = _authService.currentUser;
     
     // Filter to show only patients (not the current user, other pharmacists, or admins)
     final patients = allUsers.where((u) => 
@@ -60,7 +84,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pharmacist Dashboard'),
+        title: const Text('Admin Dashboard'),
         centerTitle: true,
         actions: [
           Padding(
@@ -127,7 +151,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Welcome, Pharmacist',
+                            'Welcome, Admin',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: Colors.grey[600],
                             ),
@@ -149,7 +173,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Text(
-                              'PHARMACIST',
+                              'ADMIN',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
@@ -164,6 +188,161 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 24),
+
+            // Recent Chats Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.chat_bubble, color: Color(0xFF9C27B0), size: 24),
+                        // WhatsApp-style total unread badge
+                        if (_totalUnreadChats > 0)
+                          Positioned(
+                            right: -10,
+                            top: -10,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF9C27B0), // Purple badge
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: Text(
+                                _totalUnreadChats > 99 ? '99+' : '$_totalUnreadChats',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Recent Chats',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ConversationsScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('View All'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_isLoadingChats)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else if (_recentChats.isEmpty)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.chat_bubble_outline, color: Colors.grey[400]),
+                      const SizedBox(width: 12),
+                      Text(
+                        'No patient conversations yet',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ...List.generate(_recentChats.length, (index) {
+                final chat = _recentChats[index];
+                final unreadCount = chat.unreadPharmacist;
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: Stack(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: const Color(0xFF9C27B0).withOpacity(0.1),
+                          child: Text(
+                            '${index + 1}',
+                            style: const TextStyle(
+                              color: Color(0xFF9C27B0),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (unreadCount > 0)
+                          Positioned(
+                            right: 0,
+                            top: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                unreadCount > 9 ? '9+' : '$unreadCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    title: Text(
+                      chat.patientName,
+                      style: TextStyle(
+                        fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      chat.lastMessage.isNotEmpty
+                          ? chat.lastMessage
+                          : 'No messages yet',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: unreadCount > 0 ? Colors.black87 : Colors.grey[600],
+                      ),
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            conversation: chat,
+                            userRole: 'pharmacist',
+                          ),
+                        ),
+                      );
+                      _loadRecentChats(); // Refresh on return
+                    },
+                  ),
+                );
+              }),
             const SizedBox(height: 24),
 
             // Quick Actions
@@ -228,6 +407,32 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const ReportsScreen()),
+                    );
+                  },
+                ),
+                _buildActionCard(
+                  icon: Icons.chat_bubble_outline,
+                  title: 'Patient Chats',
+                  color: const Color(0xFF9C27B0), // Purple
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ConversationsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildActionCard(
+                  icon: Icons.video_call_outlined,
+                  title: 'Consultations',
+                  color: const Color(0xFF00BCD4), // Cyan
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ConsultationsScreen(),
+                      ),
                     );
                   },
                 ),
@@ -384,8 +589,6 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
 
   Color _getRoleColor(String role) {
     switch (role) {
-      case 'admin':
-        return const Color(0xFFFF5252); // Vibrant Red
       case 'pharmacist':
         return const Color(0xFF2962FF); // Vibrant Blue
       default:
@@ -395,8 +598,6 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
 
   IconData _getRoleIcon(String role) {
     switch (role) {
-      case 'admin':
-        return Icons.admin_panel_settings;
       case 'pharmacist':
         return Icons.local_pharmacy;
       default:

@@ -41,7 +41,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget build(BuildContext context) {
     final patients = _users.where((u) => u.role == 'patient').toList();
     final pharmacists = _users.where((u) => u.role == 'pharmacist').toList();
-    final admins = _users.where((u) => u.role == 'admin').toList();
 
     // Calculate medication statistics
     final patientsWithMeds = patients.where((p) => p.medications.isNotEmpty).length;
@@ -100,24 +99,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
                     Row(
                       children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Patients',
+                            patients.length.toString(),
+                            Icons.person,
+                            const Color(0xFF10B981),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: _buildStatCard(
                             'Pharmacists',
                             pharmacists.length.toString(),
                             Icons.local_pharmacy,
                             const Color(0xFF3B82F6),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatCard(
-                            'Admins',
-                            admins.length.toString(),
-                            Icons.admin_panel_settings,
-                            const Color(0xFFEF4444),
                           ),
                         ),
                       ],
@@ -127,7 +125,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     // User Distribution Chart
                     _buildSectionTitle('User Distribution', Icons.pie_chart_outline),
                     const SizedBox(height: 12),
-                    _buildDistributionChart(patients.length, pharmacists.length, admins.length),
+                    _buildDistributionChart(patients.length, pharmacists.length),
                     const SizedBox(height: 24),
 
                     // Medication Statistics
@@ -281,8 +279,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  Widget _buildDistributionChart(int patients, int pharmacists, int admins) {
-    final total = patients + pharmacists + admins;
+  Widget _buildDistributionChart(int patients, int pharmacists) {
+    final total = patients + pharmacists;
     if (total == 0) {
       return Card(
         child: Padding(
@@ -320,11 +318,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         flex: pharmacists,
                         child: Container(color: const Color(0xFF3B82F6)),
                       ),
-                    if (admins > 0)
-                      Expanded(
-                        flex: admins,
-                        child: Container(color: const Color(0xFFEF4444)),
-                      ),
                   ],
                 ),
               ),
@@ -336,7 +329,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               children: [
                 _buildLegendItem('Patients', patients, total, const Color(0xFF10B981)),
                 _buildLegendItem('Pharmacists', pharmacists, total, const Color(0xFF3B82F6)),
-                _buildLegendItem('Admins', admins, total, const Color(0xFFEF4444)),
               ],
             ),
           ],

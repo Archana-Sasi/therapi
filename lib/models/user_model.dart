@@ -10,6 +10,7 @@ class UserModel {
     this.role = 'patient',
     this.age,
     this.gender,
+    this.opNumber,
     this.medications = const [],
   });
 
@@ -21,6 +22,7 @@ class UserModel {
   final String role; // patient, pharmacist, admin
   final int? age;
   final String? gender; // male, female, other
+  final String? opNumber; // OP (Outpatient) registration number
   final List<UserMedication> medications; // List of medications with brand names
 
   UserModel copyWith({
@@ -32,6 +34,7 @@ class UserModel {
     String? role,
     int? age,
     String? gender,
+    String? opNumber,
     List<UserMedication>? medications,
   }) {
     return UserModel(
@@ -43,6 +46,7 @@ class UserModel {
       role: role ?? this.role,
       age: age ?? this.age,
       gender: gender ?? this.gender,
+      opNumber: opNumber ?? this.opNumber,
       medications: medications ?? this.medications,
     );
   }
@@ -57,6 +61,7 @@ class UserModel {
       'role': role,
       'age': age,
       'gender': gender,
+      'opNumber': opNumber,
       'medications': medications.map((m) => m.toMap()).toList(),
     };
   }
@@ -89,10 +94,12 @@ class UserModel {
       role: map['role'] ?? 'patient',
       age: map['age'] as int?,
       gender: map['gender'] as String?,
+      opNumber: map['opNumber'] as String?,
       medications: medicationsList,
     );
   }
 }
+
 
 
 

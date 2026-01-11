@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/tamil_translations.dart';
 import '../models/medication_log.dart';
 import '../models/prescription_model.dart';
 import '../providers/auth_provider.dart';
+import '../providers/language_provider.dart';
 import '../services/auth_service.dart';
 import 'arrival_screen.dart';
-import 'disease_selection_screen.dart';
+import 'consultations_screen.dart';
+import 'conversations_screen.dart';
+import 'drug_directory_screen.dart';
 import 'my_medications_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import 'settings_screen.dart';
 import 'symptom_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -30,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingSummary = true;
   bool _isLoadingPrescriptions = true;
   int _unreadNotifications = 0;
+  int _unreadChats = 0;
 
   @override
   void initState() {
@@ -37,6 +43,17 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadSummary();
     _loadNotificationCount();
     _loadPrescriptions();
+    _loadUnreadChats();
+  }
+
+  Future<void> _loadUnreadChats() async {
+    final conversations = await _authService.getUserConversations();
+    final totalUnread = conversations.fold<int>(
+      0, (sum, chat) => sum + chat.unreadPatient,
+    );
+    if (mounted) {
+      setState(() => _unreadChats = totalUnread);
+    }
   }
 
   Future<void> _loadPrescriptions() async {
@@ -116,22 +133,74 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _markAsMissed(MedicationLog log) async {
+    // Confirm before marking as missed
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mark as Missed?'),
+        content: Text(
+          'Mark ${log.brandName} as missed? This will notify your pharmacist.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Mark as Missed'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final success = await _authService.updateMedicationLogStatus(
+      log.id, 
+      MedicationStatus.missed,
+    );
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${log.brandName} marked as missed. Pharmacist notified.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      _loadSummary();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final theme = Theme.of(context);
+    final langProvider = context.watch<LanguageProvider>();
+    final isTamil = langProvider.isTamil;
+    
+    // Translation helper
+    String t(String english) => isTamil ? TamilTranslations.getLabel(english) : english;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('RespiriCare'),
+        title: Text(t('RespiriCare')),
         centerTitle: true,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            tooltip: 'Menu',
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
           // Notification Bell
           Stack(
             children: [
               IconButton(
                 icon: const Icon(Icons.notifications_outlined),
-                tooltip: 'Notifications',
+                tooltip: t('Notifications'),
                 onPressed: () async {
                   await Navigator.push(
                     context,
@@ -169,43 +238,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
             ],
           ),
-          // Profile Avatar Button
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => Navigator.pushNamed(context, ProfileScreen.route),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: theme.colorScheme.primaryContainer,
-                backgroundImage: user?.photoUrl != null
-                    ? NetworkImage(user!.photoUrl!)
-                    : null,
-                child: user?.photoUrl == null
-                    ? Icon(
-                        Icons.person,
-                        size: 20,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      )
-                    : null,
-              ),
-            ),
-          ),
-          // Logout Button
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () async {
-              await context.read<AuthProvider>().signOut();
-              if (!context.mounted) return;
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                ArrivalScreen.route,
-                (_) => false,
-              );
-            },
-          ),
         ],
       ),
+      drawer: _buildDrawer(context, user, theme),
       body: RefreshIndicator(
         onRefresh: _loadSummary,
         child: SingleChildScrollView(
@@ -240,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Welcome back,',
+                              t('Welcome back,'),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: Colors.grey[600],
                               ),
@@ -277,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              "Today's Summary",
+                              t("Today's Summary"),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -306,19 +341,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           _SummaryItem(
                             icon: Icons.check_circle,
                             value: _summary['taken'].toString(),
-                            label: 'Taken',
+                            label: t('Taken'),
                             color: const Color(0xFF00C853),
                           ),
                           _SummaryItem(
                             icon: Icons.schedule,
                             value: _summary['pending'].toString(),
-                            label: 'Pending',
+                            label: t('Pending'),
                             color: const Color(0xFFFF9100),
                           ),
                           _SummaryItem(
                             icon: Icons.cancel,
                             value: _summary['missed'].toString(),
-                            label: 'Missed',
+                            label: t('Missed'),
                             color: const Color(0xFFFF5252),
                           ),
                         ],
@@ -336,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Icon(Icons.warning_amber_rounded, color: Colors.red[400], size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'Overdue Medications',
+                      t('Overdue Medications'),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.red[700],
@@ -348,32 +383,68 @@ class _HomeScreenState extends State<HomeScreen> {
                 ...(_overdueLogs.take(5).map((log) => Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   color: Colors.red.shade50,
-                  child: ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(Icons.medication, color: Colors.red[700]),
-                    ),
-                    title: Text(
-                      log.brandName.isNotEmpty ? log.brandName : log.drugId,
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    subtitle: Text(
-                      'Was due: ${_formatTime(log.scheduledTime)}',
-                      style: TextStyle(color: Colors.red[400], fontSize: 12),
-                    ),
-                    trailing: ElevatedButton(
-                      onPressed: () => _markAsTaken(log),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-                      child: const Text('Take Now'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.medication, color: Colors.red[700]),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    log.brandName.isNotEmpty ? log.brandName : log.drugId,
+                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    'Was due: ${_formatTime(log.scheduledTime)}',
+                                    style: TextStyle(color: Colors.red[400], fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _markAsMissed(log),
+                                icon: const Icon(Icons.close, size: 18),
+                                label: const Text('Miss'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red[700],
+                                  side: BorderSide(color: Colors.red[300]!),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: () => _markAsTaken(log),
+                                icon: const Icon(Icons.check, size: 18),
+                                label: const Text('Take Now'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ))),
@@ -383,7 +454,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // Upcoming Medications
               if (_pendingLogs.isNotEmpty) ...[
                 Text(
-                  'Upcoming Medications',
+                  t('Upcoming Medications'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -420,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Quick Actions Title
               Text(
-                'Quick Actions',
+                t('Quick Actions'),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -431,23 +502,29 @@ class _HomeScreenState extends State<HomeScreen> {
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
+                crossAxisCount: 3,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 0.85,
                 children: [
                   _QuickActionCard(
                     icon: Icons.medication_outlined,
-                    title: 'Drug Directory',
-                    subtitle: 'A-Z Medications',
+                    title: t('Drug Directory'),
+                    subtitle: t('A-Z Medications'),
                     color: const Color(0xFF2196F3),
                     onTap: () {
-                      Navigator.pushNamed(context, DiseaseSelectionScreen.route);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DrugDirectoryScreen(),
+                        ),
+                      );
                     },
                   ),
                   _QuickActionCard(
                     icon: Icons.alarm,
-                    title: 'My Medications',
-                    subtitle: 'Set Reminders',
+                    title: t('My Medications'),
+                    subtitle: t('Set Reminders'),
                     color: const Color(0xFF00C853),
                     onTap: () async {
                       await Navigator.pushNamed(context, MyMedicationsScreen.route);
@@ -456,11 +533,41 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _QuickActionCard(
                     icon: Icons.note_add_outlined,
-                    title: 'Log Symptoms',
-                    subtitle: 'Track health',
+                    title: t('Log Symptoms'),
+                    subtitle: t('Track health'),
                     color: const Color(0xFFFF6D00),
                     onTap: () {
                       Navigator.pushNamed(context, SymptomHistoryScreen.route);
+                    },
+                  ),
+                  _QuickActionCard(
+                    icon: Icons.chat_bubble_outline,
+                    title: t('Chat'),
+                    subtitle: t('Ask Pharmacist'),
+                    color: const Color(0xFF9C27B0),
+                    badgeCount: _unreadChats,
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ConversationsScreen(),
+                        ),
+                      );
+                      _loadUnreadChats(); // Refresh after returning
+                    },
+                  ),
+                  _QuickActionCard(
+                    icon: Icons.video_call_outlined,
+                    title: t('Consultations'),
+                    subtitle: t('Video Calls'),
+                    color: const Color(0xFF00BCD4),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ConsultationsScreen(),
+                        ),
+                      );
                     },
                   ),
                 ],
@@ -473,7 +580,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'My Prescriptions',
+                      t('My Prescriptions'),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -608,6 +715,220 @@ class _HomeScreenState extends State<HomeScreen> {
     final period = time.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
   }
+
+  Widget _buildDrawer(BuildContext context, dynamic user, ThemeData theme) {
+    final langProvider = context.watch<LanguageProvider>();
+    final isTamil = langProvider.isTamil;
+    
+    // Translation helper
+    String t(String english) => isTamil ? TamilTranslations.getLabel(english) : english;
+    
+    return Drawer(
+      child: Column(
+        children: [
+          // Drawer Header with user info
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 24,
+              bottom: 24,
+              left: 20,
+              right: 20,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.primary,
+                  theme.colorScheme.primary.withOpacity(0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 35,
+                  backgroundColor: Colors.white,
+                  backgroundImage: user?.photoUrl != null
+                      ? NetworkImage(user!.photoUrl!)
+                      : null,
+                  child: user?.photoUrl == null
+                      ? Text(
+                          user?.fullName?.isNotEmpty == true
+                              ? user!.fullName![0].toUpperCase()
+                              : 'U',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  user?.fullName ?? 'User',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  user?.role ?? 'patient',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Menu Items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  icon: Icons.person_outline,
+                  title: t('Profile'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, ProfileScreen.route);
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.notifications_outlined,
+                  title: t('Notifications'),
+                  trailing: _unreadNotifications > 0
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$_unreadNotifications',
+                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        )
+                      : null,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                    );
+                    _loadNotificationCount();
+                  },
+                ),
+                const Divider(),
+                
+                // Language Toggle
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.language, color: Color(0xFF3B82F6)),
+                  ),
+                  title: const Text('Language / மொழி'),
+                  subtitle: Text(
+                    langProvider.isEnglish ? 'English' : 'தமிழ்',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                  trailing: Switch(
+                    value: langProvider.isTamil,
+                    onChanged: (_) => langProvider.toggleLanguage(),
+                    activeColor: theme.colorScheme.primary,
+                  ),
+                  onTap: () => langProvider.toggleLanguage(),
+                ),
+                
+                _buildDrawerItem(
+                  icon: Icons.settings_outlined,
+                  title: t('Settings'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, SettingsScreen.route);
+                  },
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.info_outline,
+                  title: t('About'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'RespiriCare',
+                      applicationVersion: '1.0.0',
+                      applicationIcon: const Icon(Icons.medical_services, size: 48),
+                      children: [
+                        const Text('A comprehensive medication management app for respiratory care.'),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          
+          // Logout at bottom
+          const Divider(height: 1),
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.logout, color: Colors.red),
+            ),
+            title: Text(t('Logout'), style: const TextStyle(color: Colors.red)),
+            trailing: const Icon(Icons.chevron_right, color: Colors.red),
+            onTap: () async {
+              Navigator.pop(context);
+              await context.read<AuthProvider>().signOut();
+              if (!context.mounted) return;
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                ArrivalScreen.route,
+                (_) => false,
+              );
+            },
+          ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    Widget? trailing,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF6366F1).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: const Color(0xFF6366F1)),
+      ),
+      title: Text(title),
+      trailing: trailing ?? const Icon(Icons.chevron_right),
+      onTap: onTap,
+    );
+  }
 }
 
 class _QuickActionCard extends StatelessWidget {
@@ -617,6 +938,7 @@ class _QuickActionCard extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
@@ -624,42 +946,74 @@ class _QuickActionCard extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: 1,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(8),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 32),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: color, size: 24),
+                  ),
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF9C27B0),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        child: Text(
+                          badgeCount > 99 ? '99+' : '$badgeCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 6),
               Text(
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 11,
                 ),
                 textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               Text(
                 subtitle,
                 style: TextStyle(
                   color: Colors.grey[600],
-                  fontSize: 12,
+                  fontSize: 9,
                 ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -707,3 +1061,4 @@ class _SummaryItem extends StatelessWidget {
     );
   }
 }
+

@@ -281,8 +281,6 @@ class ProfileScreen extends StatelessWidget {
 
   Color _getRoleColor(String role) {
     switch (role) {
-      case 'admin':
-        return const Color(0xFFEF4444); // Vibrant Red
       case 'pharmacist':
         return const Color(0xFF3B82F6); // Vibrant Blue
       default:

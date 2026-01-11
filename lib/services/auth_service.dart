@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../models/chat_conversation.dart';
+import '../models/chat_message.dart';
+import '../models/consultation.dart';
 import '../models/custom_drug.dart';
 import '../models/medication_log.dart';
 import '../models/medication_reminder.dart';
@@ -9,22 +12,24 @@ import '../models/prescription_model.dart';
 import '../models/user_model.dart';
 import '../models/user_notification.dart';
 
-/// Firebase Authentication service for login, signup, Google sign-in, and password reset.
+/// Firebase Authentication service for login, signup, Google sign-in, phone OTP, and password reset.
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  // Phone OTP verification state
+  String? _verificationId;
+  int? _resendToken;
+  
+  /// Getter for verification ID (used by AuthProvider)
+  String? get verificationId => _verificationId;
 
   /// Signs in a user with email and password.
   Future<UserModel> login({
     required String email,
     required String password,
   }) async {
-    // Sign out any existing session first to clear cached credentials
-    try {
-      await _auth.signOut();
-    } catch (_) {}
-    
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
@@ -96,6 +101,153 @@ class AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     await _auth.sendPasswordResetEmail(email: email);
   }
+
+  // ============ PHONE OTP AUTHENTICATION ============
+
+  /// Sends OTP to the given phone number
+  /// [phoneNumber] should include country code (e.g., +919876543210)
+  Future<void> sendOTP({
+    required String phoneNumber,
+    required Function(String verificationId, int? resendToken) onCodeSent,
+    required Function(String error) onError,
+    required Function(UserModel user) onAutoVerified,
+    int? resendToken,
+  }) async {
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        timeout: const Duration(seconds: 60),
+        forceResendingToken: resendToken,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-verification (Android only - when SMS is auto-read)
+          try {
+            final userCredential = await _auth.signInWithCredential(credential);
+            final user = userCredential.user!;
+            
+            // Check if user already exists in Firestore
+            final existingUser = await getUserProfile(user.uid);
+            if (existingUser != null) {
+              onAutoVerified(existingUser);
+            } else {
+              // New user - create basic profile
+              final userModel = UserModel(
+                id: user.uid,
+                email: '',
+                fullName: 'User',
+                phoneNumber: user.phoneNumber,
+                role: 'patient',
+              );
+              await _trySaveUserToFirestore(userModel);
+              onAutoVerified(userModel);
+            }
+          } catch (e) {
+            onError('Auto-verification failed: $e');
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          String message = 'Verification failed';
+          if (e.code == 'invalid-phone-number') {
+            message = 'Invalid phone number format';
+          } else if (e.code == 'too-many-requests') {
+            message = 'Too many requests. Please try again later.';
+          } else if (e.code == 'quota-exceeded') {
+            message = 'SMS quota exceeded. Please try again later.';
+          } else {
+            message = e.message ?? 'Verification failed';
+          }
+          onError(message);
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _verificationId = verificationId;
+          _resendToken = resendToken;
+          onCodeSent(verificationId, resendToken);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+      );
+    } catch (e) {
+      onError('Failed to send OTP: $e');
+    }
+  }
+
+  /// Verifies OTP and signs in the user
+  /// Returns the user if successful, throws exception on failure
+  Future<UserModel> verifyOTP(String otp) async {
+    if (_verificationId == null) {
+      throw Exception('No verification ID. Please request OTP first.');
+    }
+
+    final credential = PhoneAuthProvider.credential(
+      verificationId: _verificationId!,
+      smsCode: otp,
+    );
+
+    final userCredential = await _auth.signInWithCredential(credential);
+    final user = userCredential.user!;
+
+    // Check if user already exists in Firestore
+    final existingUser = await getUserProfile(user.uid);
+    if (existingUser != null) {
+      return existingUser;
+    }
+
+    // New user - create basic profile (will complete profile later)
+    final userModel = UserModel(
+      id: user.uid,
+      email: '',
+      fullName: 'User',
+      phoneNumber: user.phoneNumber,
+      role: 'patient',
+    );
+    await _trySaveUserToFirestore(userModel);
+    return userModel;
+  }
+
+  /// Creates/updates user profile after phone verification
+  Future<UserModel> completePhoneSignup({
+    required String fullName,
+    String role = 'patient',
+    int? age,
+    String? gender,
+    String? opNumber,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user. Please verify OTP first.');
+    }
+
+    await user.updateDisplayName(fullName);
+
+    final userModel = UserModel(
+      id: user.uid,
+      email: user.email ?? '',
+      fullName: fullName,
+      phoneNumber: user.phoneNumber,
+      role: role,
+      age: age,
+      gender: gender,
+      opNumber: opNumber,
+    );
+
+    await _trySaveUserToFirestore(userModel);
+    return userModel;
+  }
+
+  /// Checks if the current user has completed their profile
+  Future<bool> isProfileComplete() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    final profile = await getUserProfile(user.uid);
+    if (profile == null) return false;
+
+    // Profile is complete if fullName is set and not default
+    return profile.fullName.isNotEmpty && profile.fullName != 'User';
+  }
+
+  /// Gets the resend token for resending OTP
+  int? get resendToken => _resendToken;
 
   /// Signs out the currently authenticated user.
   Future<void> signOut() async {
@@ -494,6 +646,20 @@ class AuthService {
     if (user == null) return false;
 
     try {
+      // Get the log details first (for missed medication notification)
+      MedicationLog? log;
+      if (status == MedicationStatus.missed) {
+        final logDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('medication_logs')
+            .doc(logId)
+            .get();
+        if (logDoc.exists) {
+          log = MedicationLog.fromMap(logDoc.data()!);
+        }
+      }
+
       final updateData = <String, dynamic>{'status': status.name};
       if (status == MedicationStatus.taken) {
         updateData['actualTime'] = DateTime.now().toIso8601String();
@@ -504,11 +670,58 @@ class AuthService {
           .collection('medication_logs')
           .doc(logId)
           .update(updateData);
+
+      // Notify pharmacists when medication is missed
+      if (status == MedicationStatus.missed && log != null) {
+        await _notifyPharmacistsOfMissedMedication(user.uid, log);
+      }
+
       return true;
     } catch (e) {
       print('Failed to update log: $e');
       return false;
     }
+  }
+
+  /// Notifies all pharmacists when a patient misses their medication
+  Future<void> _notifyPharmacistsOfMissedMedication(String patientId, MedicationLog log) async {
+    try {
+      // Get patient name
+      final patientProfile = await getUserProfile(patientId);
+      final patientName = patientProfile?.fullName ?? 'A patient';
+
+      // Get all pharmacists
+      final pharmacists = await getPharmacists();
+
+      // Send notification to each pharmacist
+      for (final pharmacist in pharmacists) {
+        final notificationId = '${patientId}_missed_${DateTime.now().millisecondsSinceEpoch}';
+        final notification = UserNotification(
+          id: notificationId,
+          title: '⚠️ Missed Medication Alert',
+          message: '$patientName missed their ${log.brandName} scheduled at ${_formatTimeSimple(log.scheduledTime)}.',
+          senderId: patientId,
+          senderName: patientName,
+          recipientId: pharmacist.id,
+          createdAt: DateTime.now(),
+          type: NotificationType.alert,
+        );
+
+        await _firestore
+            .collection('notifications')
+            .doc(notificationId)
+            .set(notification.toMap());
+      }
+    } catch (e) {
+      print('Failed to notify pharmacists: $e');
+    }
+  }
+
+  String _formatTimeSimple(DateTime time) {
+    final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
   }
 
   /// Creates medication logs for today based on reminders
@@ -965,5 +1178,287 @@ class AuthService {
       return false;
     }
   }
+
+  // ============== CHAT METHODS ==============
+
+  /// Gets all pharmacists (for patients to start a chat)
+  Future<List<UserModel>> getPharmacists() async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'pharmacist')
+          .get();
+      return snapshot.docs
+          .map((doc) => UserModel.fromMap(doc.data()))
+          .toList();
+    } catch (e) {
+      print('Failed to get pharmacists: $e');
+      return [];
+    }
+  }
+
+  /// Gets or creates a conversation between a patient and pharmacist
+  Future<ChatConversation?> getOrCreateConversation({
+    required String patientId,
+    required String patientName,
+    required String pharmacistId,
+    required String pharmacistName,
+  }) async {
+    try {
+      // Check if conversation already exists
+      final existingSnapshot = await _firestore
+          .collection('conversations')
+          .where('patientId', isEqualTo: patientId)
+          .where('pharmacistId', isEqualTo: pharmacistId)
+          .limit(1)
+          .get();
+
+      if (existingSnapshot.docs.isNotEmpty) {
+        return ChatConversation.fromMap(existingSnapshot.docs.first.data());
+      }
+
+      // Create new conversation
+      final docRef = _firestore.collection('conversations').doc();
+      final conversation = ChatConversation(
+        id: docRef.id,
+        patientId: patientId,
+        patientName: patientName,
+        pharmacistId: pharmacistId,
+        pharmacistName: pharmacistName,
+        createdAt: DateTime.now(),
+      );
+
+      await docRef.set(conversation.toMap());
+      return conversation;
+    } catch (e) {
+      print('Failed to get/create conversation: $e');
+      return null;
+    }
+  }
+
+  /// Sends a message in a conversation
+  Future<bool> sendMessage({
+    required String conversationId,
+    required String message,
+    required String senderRole,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      // Get sender's name
+      final userProfile = await getUserProfile(user.uid);
+      final senderName = userProfile?.fullName ?? 'User';
+
+      final messageRef = _firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .doc();
+
+      final chatMessage = ChatMessage(
+        id: messageRef.id,
+        conversationId: conversationId,
+        senderId: user.uid,
+        senderName: senderName,
+        senderRole: senderRole,
+        message: message,
+        timestamp: DateTime.now(),
+      );
+
+      await messageRef.set(chatMessage.toMap());
+
+      // Update conversation with last message
+      final unreadField = senderRole == 'patient' 
+          ? 'unreadPharmacist' 
+          : 'unreadPatient';
+
+      await _firestore.collection('conversations').doc(conversationId).update({
+        'lastMessage': message,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        unreadField: FieldValue.increment(1),
+      });
+
+      return true;
+    } catch (e) {
+      print('Failed to send message: $e');
+      return false;
+    }
+  }
+
+  /// Gets real-time stream of messages for a conversation
+  Stream<List<ChatMessage>> getMessagesStream(String conversationId) {
+    return _firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ChatMessage.fromMap(doc.data()))
+            .toList());
+  }
+
+  /// Gets all conversations for the current user
+  Future<List<ChatConversation>> getUserConversations() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      // Get user's role
+      final userProfile = await getUserProfile(user.uid);
+      final role = userProfile?.role ?? 'patient';
+
+      final fieldName = role == 'patient' ? 'patientId' : 'pharmacistId';
+      
+      final snapshot = await _firestore
+          .collection('conversations')
+          .where(fieldName, isEqualTo: user.uid)
+          .get();
+
+      final conversations = snapshot.docs
+          .map((doc) => ChatConversation.fromMap(doc.data()))
+          .toList();
+
+      // Sort by lastMessageTime descending
+      conversations.sort((a, b) {
+        final aTime = a.lastMessageTime ?? a.createdAt ?? DateTime(2000);
+        final bTime = b.lastMessageTime ?? b.createdAt ?? DateTime(2000);
+        return bTime.compareTo(aTime);
+      });
+
+      return conversations;
+    } catch (e) {
+      print('Failed to get conversations: $e');
+      return [];
+    }
+  }
+
+  /// Marks messages as read for the current user
+  Future<void> markConversationAsRead(String conversationId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // Get user's role
+      final userProfile = await getUserProfile(user.uid);
+      final role = userProfile?.role ?? 'patient';
+      
+      final unreadField = role == 'patient' ? 'unreadPatient' : 'unreadPharmacist';
+
+      await _firestore.collection('conversations').doc(conversationId).update({
+        unreadField: 0,
+      });
+
+      // Mark all messages as read
+      final messagesSnapshot = await _firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      final batch = _firestore.batch();
+      for (final doc in messagesSnapshot.docs) {
+        final senderId = doc.data()['senderId'];
+        if (senderId != user.uid) {
+          batch.update(doc.reference, {'isRead': true});
+        }
+      }
+      await batch.commit();
+    } catch (e) {
+      print('Failed to mark as read: $e');
+    }
+  }
+
+  // ============== CONSULTATION METHODS ==============
+
+  /// Creates a new consultation request
+  Future<bool> createConsultation(Consultation consultation) async {
+    try {
+      await _firestore
+          .collection('consultations')
+          .doc(consultation.id)
+          .set(consultation.toMap());
+      return true;
+    } catch (e) {
+      print('Failed to create consultation: $e');
+      return false;
+    }
+  }
+
+  /// Gets consultations for the current user
+  Future<List<Consultation>> getUserConsultations() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      // Get user's role
+      final userProfile = await getUserProfile(user.uid);
+      final role = userProfile?.role ?? 'patient';
+
+      final fieldName = role == 'patient' ? 'patientId' : 'pharmacistId';
+      
+      final snapshot = await _firestore
+          .collection('consultations')
+          .where(fieldName, isEqualTo: user.uid)
+          .get();
+
+      final consultations = snapshot.docs
+          .map((doc) => Consultation.fromMap(doc.data()))
+          .toList();
+
+      // Sort by requestedDate descending
+      consultations.sort((a, b) => b.requestedDate.compareTo(a.requestedDate));
+
+      return consultations;
+    } catch (e) {
+      print('Failed to get consultations: $e');
+      return [];
+    }
+  }
+
+  /// Updates consultation status
+  Future<bool> updateConsultationStatus(
+    String consultationId, 
+    ConsultationStatus status, 
+    {String? meetingLink}
+  ) async {
+    try {
+      final updateData = <String, dynamic>{
+        'status': status.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      
+      if (meetingLink != null) {
+        updateData['meetingLink'] = meetingLink;
+      }
+
+      await _firestore
+          .collection('consultations')
+          .doc(consultationId)
+          .update(updateData);
+      return true;
+    } catch (e) {
+      print('Failed to update consultation: $e');
+      return false;
+    }
+  }
+
+  /// Deletes a consultation
+  Future<bool> deleteConsultation(String consultationId) async {
+    try {
+      await _firestore
+          .collection('consultations')
+          .doc(consultationId)
+          .delete();
+      return true;
+    } catch (e) {
+      print('Failed to delete consultation: $e');
+      return false;
+    }
+  }
 }
+
 

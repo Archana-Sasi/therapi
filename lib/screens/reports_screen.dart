@@ -127,7 +127,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget _buildUserReport() {
     final patients = _users.where((u) => u.role == 'patient').toList();
     final pharmacists = _users.where((u) => u.role == 'pharmacist').toList();
-    final admins = _users.where((u) => u.role == 'admin').toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,7 +140,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
               _buildSummaryRow('Total Registered Users', _users.length.toString()),
               _buildSummaryRow('Patients', patients.length.toString()),
               _buildSummaryRow('Pharmacists', pharmacists.length.toString()),
-              _buildSummaryRow('Administrators', admins.length.toString()),
             ],
           ),
         ),
@@ -493,8 +491,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Color _getRoleColor(String role) {
     switch (role) {
-      case 'admin':
-        return const Color(0xFFEF4444);
       case 'pharmacist':
         return const Color(0xFF3B82F6);
       default:

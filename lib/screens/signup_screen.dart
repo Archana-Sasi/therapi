@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import 'admin_home_screen.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'pharmacist_home_screen.dart';
@@ -28,8 +27,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   static const List<Map<String, String>> _roles = [
     {'value': 'patient', 'label': 'User (Patient)'},
-    {'value': 'pharmacist', 'label': 'Pharmacist'},
-    {'value': 'admin', 'label': 'Admin'},
+    {'value': 'pharmacist', 'label': 'Admin (Pharmacist)'},
   ];
 
   static const List<String> _genders = ['Male', 'Female', 'Other'];
@@ -49,51 +47,22 @@ class _SignupScreenState extends State<SignupScreen> {
       case 'pharmacist':
         route = PharmacistHomeScreen.route;
         break;
-      case 'admin':
-        route = AdminHomeScreen.route;
-        break;
       default:
         route = HomeScreen.route;
     }
     Navigator.pushReplacementNamed(context, route);
   }
 
-  /// Converts Firebase error messages to user-friendly text
-  String _getFriendlyErrorMessage(dynamic error) {
-    final errorString = error.toString().toLowerCase();
-    
-    if (errorString.contains('invalid-credential') || 
-        errorString.contains('wrong-password') ||
-        errorString.contains('invalid-email')) {
-      return 'Invalid email or password. Please try again.';
-    } else if (errorString.contains('user-not-found')) {
-      return 'No account found with this email.';
-    } else if (errorString.contains('user-disabled')) {
-      return 'This account has been disabled.';
-    } else if (errorString.contains('too-many-requests')) {
-      return 'Too many failed attempts. Please try again later.';
-    } else if (errorString.contains('network')) {
-      return 'Network error. Please check your connection.';
-    } else if (errorString.contains('email-already-in-use')) {
-      return 'This email is already registered.';
-    } else if (errorString.contains('weak-password')) {
-      return 'Password is too weak. Use at least 6 characters.';
-    } else if (errorString.contains('cancelled')) {
-      return 'Sign in was cancelled.';
-    }
-    
-    return 'Something went wrong. Please try again.';
-  }
-
-  Future<void> _submit() async {
+  Future<void> _signup() async {
     if (!_formKey.currentState!.validate()) return;
+
     final auth = context.read<AuthProvider>();
     try {
       final age = int.tryParse(_ageController.text.trim());
       await auth.signup(
         _fullNameController.text.trim(),
         _emailController.text.trim(),
-        _passwordController.text.trim(),
+        _passwordController.text,
         role: _selectedRole,
         age: age,
         gender: _selectedGender,
@@ -102,9 +71,17 @@ class _SignupScreenState extends State<SignupScreen> {
       _navigateByRole(_selectedRole);
     } catch (e) {
       if (!mounted) return;
+      String message = 'Signup failed';
+      if (e.toString().contains('email-already-in-use')) {
+        message = 'An account with this email already exists';
+      } else if (e.toString().contains('weak-password')) {
+        message = 'Password is too weak';
+      } else if (e.toString().contains('invalid-email')) {
+        message = 'Invalid email format';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_getFriendlyErrorMessage(e)),
+          content: Text(message),
           backgroundColor: Colors.red,
         ),
       );
@@ -119,9 +96,13 @@ class _SignupScreenState extends State<SignupScreen> {
       _navigateByRole(auth.user?.role ?? 'patient');
     } catch (e) {
       if (!mounted) return;
+      String message = 'Sign in failed';
+      if (e.toString().contains('cancelled')) {
+        message = 'Sign in was cancelled';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_getFriendlyErrorMessage(e)),
+          content: Text(message),
           backgroundColor: Colors.red,
         ),
       );
@@ -146,7 +127,7 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // App Icon - Using the actual app logo
+                // App Icon
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -225,17 +206,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   controller: _passwordController,
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
+                    prefixIcon: const Icon(Icons.lock_outlined),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
                       ),
                       onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
+                        setState(() => _obscurePassword = !_obscurePassword);
                       },
                     ),
                     border: OutlineInputBorder(
@@ -248,7 +225,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       return 'Password is required';
                     }
                     if (value.length < 6) {
-                      return 'At least 6 characters';
+                      return 'Password must be at least 6 characters';
                     }
                     return null;
                   },
@@ -263,7 +240,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       child: TextFormField(
                         controller: _ageController,
                         decoration: InputDecoration(
-                          labelText: 'Age',
+                          labelText: 'Age (optional)',
                           prefixIcon: const Icon(Icons.cake_outlined),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -300,9 +277,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                 ))
                             .toList(),
                         onChanged: (value) {
-                          setState(() {
-                            _selectedGender = value;
-                          });
+                          setState(() => _selectedGender = value);
                         },
                       ),
                     ),
@@ -327,9 +302,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           ))
                       .toList(),
                   onChanged: (value) {
-                    setState(() {
-                      _selectedRole = value ?? 'patient';
-                    });
+                    setState(() => _selectedRole = value ?? 'patient');
                   },
                 ),
                 const SizedBox(height: 24),
@@ -339,7 +312,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   width: double.infinity,
                   height: 50,
                   child: FilledButton.icon(
-                    onPressed: isLoading ? null : _submit,
+                    onPressed: isLoading ? null : _signup,
                     icon: isLoading
                         ? const SizedBox(
                             width: 18,

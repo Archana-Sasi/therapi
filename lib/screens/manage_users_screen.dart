@@ -28,7 +28,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
     _loadUsers();
   }
@@ -52,9 +52,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
         break;
       case 2:
         _selectedFilter = 'pharmacist';
-        break;
-      case 3:
-        _selectedFilter = 'admin';
         break;
     }
     _filterUsers();
@@ -111,9 +108,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
             ),
             Tab(
               text: 'Pharmacists (${_users.where((u) => u.role == 'pharmacist').length})',
-            ),
-            Tab(
-              text: 'Admins (${_users.where((u) => u.role == 'admin').length})',
             ),
           ],
         ),
@@ -416,7 +410,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
             children: [
               Text('Change role for ${user.fullName}'),
               const SizedBox(height: 16),
-              ...['patient', 'pharmacist', 'admin'].map((role) => RadioListTile<String>(
+              ...['patient', 'pharmacist'].map((role) => RadioListTile<String>(
                     title: Text(role.substring(0, 1).toUpperCase() + role.substring(1)),
                     value: role,
                     groupValue: selectedRole,
@@ -523,8 +517,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
 
   Color _getRoleColor(String role) {
     switch (role) {
-      case 'admin':
-        return const Color(0xFFFF5252);
       case 'pharmacist':
         return const Color(0xFF2962FF);
       default:
@@ -534,8 +526,6 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
 
   IconData _getRoleIcon(String role) {
     switch (role) {
-      case 'admin':
-        return Icons.admin_panel_settings;
       case 'pharmacist':
         return Icons.local_pharmacy;
       default:
@@ -559,8 +549,6 @@ class _UserCard extends StatelessWidget {
 
   Color get _roleColor {
     switch (user.role) {
-      case 'admin':
-        return const Color(0xFFFF5252);
       case 'pharmacist':
         return const Color(0xFF2962FF);
       default:
@@ -570,8 +558,6 @@ class _UserCard extends StatelessWidget {
 
   IconData get _roleIcon {
     switch (user.role) {
-      case 'admin':
-        return Icons.admin_panel_settings;
       case 'pharmacist':
         return Icons.local_pharmacy;
       default:

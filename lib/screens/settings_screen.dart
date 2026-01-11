@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/language_provider.dart';
 import 'arrival_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -17,7 +18,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _darkMode = false;
   bool _analyticsEnabled = true;
-  String _language = 'English';
 
   @override
   Widget build(BuildContext context) {
@@ -117,23 +117,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Language Section
             _buildSectionTitle('Language', Icons.language_outlined),
             const SizedBox(height: 12),
-            Card(
-              child: ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3B82F6).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+            Consumer<LanguageProvider>(
+              builder: (context, langProvider, _) => Card(
+                child: ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3B82F6).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.translate,
+                      color: Color(0xFF3B82F6),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.translate,
-                    color: Color(0xFF3B82F6),
+                  title: const Text('App Language'),
+                  subtitle: Text(
+                    langProvider.currentLanguage.nativeName,
                   ),
+                  trailing: Switch(
+                    value: langProvider.isTamil,
+                    onChanged: (_) => langProvider.toggleLanguage(),
+                    activeColor: const Color(0xFF6366F1),
+                  ),
+                  onTap: () => langProvider.toggleLanguage(),
                 ),
-                title: const Text('App Language'),
-                subtitle: Text(_language),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: _showLanguageDialog,
               ),
             ),
             const SizedBox(height: 24),
@@ -299,30 +307,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showLanguageDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Language'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: ['English', 'Hindi', 'Tamil', 'Telugu', 'Malayalam'].map((lang) {
-            return RadioListTile<String>(
-              title: Text(lang),
-              value: lang,
-              groupValue: _language,
-              onChanged: (value) {
-                setState(() => _language = value!);
-                Navigator.pop(context);
-                _showSavedSnackbar();
-              },
-              activeColor: const Color(0xFF6366F1),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
+  // Language dialog removed - now using toggle switch in Consumer<LanguageProvider>
 
   void _showClearCacheDialog() {
     showDialog(
