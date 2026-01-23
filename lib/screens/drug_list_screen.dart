@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../data/drug_data.dart';
+import '../data/tamil_translations.dart';
 import '../models/custom_drug.dart';
 import '../models/drug_model.dart';
+import '../providers/language_provider.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
 import 'drug_detail_screen.dart';
 
-/// Screen showing drugs filtered by a specific disease
+/// Screen showing drugs filtered by a specific respiratory disease
 class DrugListScreen extends StatefulWidget {
   const DrugListScreen({
     super.key,
@@ -105,6 +108,14 @@ class _DrugListScreenState extends State<DrugListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final langProvider = context.watch<LanguageProvider>();
+    final isTamil = langProvider.isTamil;
+
+    // Helper for translations
+    String t(String english) =>
+        isTamil ? TamilTranslations.getLabel(english) : english;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.diseaseName),
@@ -127,7 +138,9 @@ class _DrugListScreenState extends State<DrugListScreen> {
               controller: _searchController,
               onChanged: _filterDrugs,
               decoration: InputDecoration(
-                hintText: 'Search medications...',
+                hintText: isTamil
+                    ? 'பொதுப் பெயர் அல்லது வர்த்தக பெயரில் தேடுக...'
+                    : 'Search by generic or brand name...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -141,6 +154,8 @@ class _DrugListScreenState extends State<DrugListScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest,
               ),
             ),
           ),
@@ -153,7 +168,7 @@ class _DrugListScreenState extends State<DrugListScreen> {
                 Icon(Icons.medication, size: 18, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Text(
-                  '${_filteredDrugs.length} medication${_filteredDrugs.length == 1 ? '' : 's'} found',
+                  '${_filteredDrugs.length} ${t('medications')}',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 if (_customDrugs.isNotEmpty) ...[
@@ -165,7 +180,7 @@ class _DrugListScreenState extends State<DrugListScreen> {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '+${_customDrugs.length} custom',
+                      '+${_customDrugs.length} ${t('custom')}',
                       style: TextStyle(
                         fontSize: 10,
                         color: Colors.amber[700],
@@ -179,7 +194,7 @@ class _DrugListScreenState extends State<DrugListScreen> {
           ),
           const SizedBox(height: 8),
 
-          // Drug List
+          // Drug List with enhanced display
           Expanded(
             child: _filteredDrugs.isEmpty
                 ? Center(
@@ -189,7 +204,7 @@ class _DrugListScreenState extends State<DrugListScreen> {
                         Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
                         Text(
-                          'No medications found',
+                          t('No medications found'),
                           style: TextStyle(
                             fontSize: 18,
                             color: Colors.grey[600],
@@ -212,130 +227,12 @@ class _DrugListScreenState extends State<DrugListScreen> {
 
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(16),
-                          leading: Stack(
-                            children: [
-                              Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: isCustom 
-                                      ? Colors.amber.withAlpha(25)
-                                      : drugColor.withAlpha(25),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    genericName.isNotEmpty ? genericName[0] : '?',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: isCustom ? Colors.amber[700] : drugColor,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (isCustom)
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 1.5),
-                                    ),
-                                    child: const Icon(
-                                      Icons.star,
-                                      size: 8,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          title: Text(
-                            genericName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                brandNames.join(', '),
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 13,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: drugColor.withAlpha(25),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      DrugModel.getCategoryDisplayName(category),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                        color: drugColor,
-                                      ),
-                                    ),
-                                  ),
-                                  if (isCustom) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.withAlpha(30),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        'CUSTOM',
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.amber[700],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      doseForm,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey[500],
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
                           onTap: () {
                             if (drug is DrugModel) {
                               Navigator.push(
@@ -345,47 +242,246 @@ class _DrugListScreenState extends State<DrugListScreen> {
                                 ),
                               );
                             } else if (drug is CustomDrug) {
-                              // Show dialog for custom drugs
-                              showDialog(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: Text(genericName),
-                                  content: SingleChildScrollView(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text('Brands: ${brandNames.join(", ")}'),
-                                        const SizedBox(height: 8),
-                                        Text('Category: ${DrugModel.getCategoryDisplayName(category)}'),
-                                        const SizedBox(height: 8),
-                                        Text('Dose Form: $doseForm'),
-                                        if (drug.description.isNotEmpty) ...[
-                                          const SizedBox(height: 8),
-                                          Text('Description: ${drug.description}'),
-                                        ],
-                                        if (drug.dosage != null) ...[
-                                          const SizedBox(height: 8),
-                                          Text('Dosage: ${drug.dosage}'),
-                                        ],
-                                      ],
+                              _showCustomDrugDialog(drug, isTamil, t);
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header Row with icon and category
+                                Row(
+                                  children: [
+                                    // Drug initial icon
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: isCustom 
+                                            ? Colors.amber.withAlpha(25)
+                                            : drugColor.withAlpha(25),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          genericName.isNotEmpty ? genericName[0] : '?',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: isCustom ? Colors.amber[700] : drugColor,
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      child: const Text('Close'),
+                                    const SizedBox(width: 12),
+                                    // Category and dose form
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8,
+                                                  vertical: 3,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: drugColor.withAlpha(25),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Text(
+                                                  isTamil
+                                                      ? TamilTranslations.getCategory(
+                                                          DrugModel.getCategoryDisplayName(category))
+                                                      : DrugModel.getCategoryDisplayName(category),
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: drugColor,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (isCustom) ...[
+                                                const SizedBox(width: 6),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.amber.withAlpha(30),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    t('CUSTOM'),
+                                                    style: TextStyle(
+                                                      fontSize: 8,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.amber[700],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            doseForm,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey[500],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(Icons.chevron_right, color: Colors.grey[400]),
+                                  ],
+                                ),
+                                
+                                const SizedBox(height: 12),
+                                const Divider(height: 1),
+                                const SizedBox(height: 12),
+                                
+                                // Generic Name Section
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 80,
+                                      child: Text(
+                                        t('Generic'),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        genericName,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                              );
-                            }
-                          },
+                                
+                                const SizedBox(height: 10),
+                                
+                                // Brand Names Section
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    SizedBox(
+                                      width: 80,
+                                      child: Text(
+                                        t('Brands'),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: brandNames.map((brand) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withAlpha(20),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(
+                                              color: Colors.blue.withAlpha(50),
+                                              width: 1,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            brand,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.blue[700],
+                                            ),
+                                          ),
+                                        )).toList(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       );
                     },
                   ),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _showCustomDrugDialog(CustomDrug drug, bool isTamil, String Function(String) t) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(drug.genericName),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildInfoRow(t('Brand Names'), drug.brandNames.join(', ')),
+              _buildInfoRow(t('Category'), 
+                  isTamil 
+                      ? TamilTranslations.getCategory(DrugModel.getCategoryDisplayName(drug.category))
+                      : DrugModel.getCategoryDisplayName(drug.category)),
+              _buildInfoRow(t('Dose Form'), drug.doseForm),
+              if (drug.description.isNotEmpty)
+                _buildInfoRow(t('Description'), drug.description),
+              if (drug.dosage != null && drug.dosage!.isNotEmpty)
+                _buildInfoRow(t('Dosage'), drug.dosage!),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t('Close')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[700],
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(value),
         ],
       ),
     );

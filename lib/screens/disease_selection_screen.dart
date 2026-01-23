@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../data/drug_data.dart';
+import '../data/tamil_translations.dart';
+import '../providers/language_provider.dart';
 import 'drug_list_screen.dart';
 
-/// Screen for selecting a respiratory disease to view its medications
+/// Screen for selecting a chronic respiratory disease to view its medications
 class DiseaseSelectionScreen extends StatelessWidget {
   const DiseaseSelectionScreen({super.key});
 
@@ -50,10 +53,19 @@ class DiseaseSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final langProvider = context.watch<LanguageProvider>();
+    final isTamil = langProvider.isTamil;
+
+    // Helper function for translations
+    String t(String english) =>
+        isTamil ? TamilTranslations.getLabel(english) : english;
+
+    // Get only respiratory diseases
+    final respiratoryDiseases = DrugData.respiratoryDiseases;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Drug Directory'),
+        title: Text(t('Drug Directory')),
         centerTitle: true,
       ),
       body: Padding(
@@ -63,21 +75,23 @@ class DiseaseSelectionScreen extends StatelessWidget {
           children: [
             // Header
             Text(
-              'Select a Condition',
+              t('Select a Condition'),
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Choose a respiratory disease to view recommended medications',
+              isTamil
+                  ? 'சுவாச நோய்க்கான மருந்துகளைக் காண தேர்ந்தெடுக்கவும்'
+                  : 'Choose a respiratory disease to view its medications',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
               ),
             ),
             const SizedBox(height: 24),
 
-            // Disease Grid
+            // Disease Grid - Only respiratory diseases
             Expanded(
               child: GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -86,11 +100,17 @@ class DiseaseSelectionScreen extends StatelessWidget {
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
-                itemCount: DrugData.diseases.length,
+                itemCount: respiratoryDiseases.length,
                 itemBuilder: (context, index) {
-                  final disease = DrugData.diseases[index];
-                  final color = _getDiseaseColor(disease['id'] as String);
-                  final drugCount = DrugData.getDrugsByDisease(disease['id'] as String).length;
+                  final disease = respiratoryDiseases[index];
+                  final diseaseId = disease['id'] as String;
+                  final diseaseName = disease['name'] as String;
+                  final color = _getDiseaseColor(diseaseId);
+                  final drugCount = DrugData.getDrugsByDisease(diseaseId).length;
+
+                  // Translate disease name
+                  final translatedName =
+                      isTamil ? TamilTranslations.getLabel(diseaseName) : diseaseName;
 
                   return Card(
                     elevation: 2,
@@ -100,8 +120,8 @@ class DiseaseSelectionScreen extends StatelessWidget {
                           context,
                           MaterialPageRoute(
                             builder: (_) => DrugListScreen(
-                              diseaseId: disease['id'] as String,
-                              diseaseName: disease['name'] as String,
+                              diseaseId: diseaseId,
+                              diseaseName: translatedName,
                             ),
                           ),
                         );
@@ -126,7 +146,7 @@ class DiseaseSelectionScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              disease['name'] as String,
+                              translatedName,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
@@ -137,7 +157,7 @@ class DiseaseSelectionScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '$drugCount medications',
+                              '$drugCount ${t('medications')}',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 12,

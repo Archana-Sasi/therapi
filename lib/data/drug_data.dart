@@ -44,6 +44,12 @@ class DrugData {
       ..sort((a, b) => a.genericName.compareTo(b.genericName));
   }
 
+  /// Get only chronic respiratory diseases
+  static List<Map<String, dynamic>> get respiratoryDiseases {
+    const respiratoryIds = ['asthma', 'copd', 'bronchitis', 'allergic_rhinitis', 'ild', 'pneumonia'];
+    return diseases.where((d) => respiratoryIds.contains(d['id'])).toList();
+  }
+
   /// Search drugs by name
   static List<DrugModel> searchDrugs(String query, {String? diseaseId}) {
     final lowerQuery = query.toLowerCase();

@@ -10,6 +10,7 @@ import 'screens/disease_selection_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/manage_users_screen.dart';
+import 'screens/missed_medications_screen.dart';
 import 'screens/my_medications_screen.dart';
 import 'screens/pharmacist_home_screen.dart';
 import 'screens/profile_screen.dart';
@@ -361,6 +362,7 @@ class MyApp extends StatelessWidget {
           SettingsScreen.route: (_) => const SettingsScreen(),
           ReportsScreen.route: (_) => const ReportsScreen(),
           CompleteProfileScreen.route: (_) => const CompleteProfileScreen(),
+          MissedMedicationsScreen.route: (_) => const MissedMedicationsScreen(),
         },
       ),
     );

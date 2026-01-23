@@ -9,6 +9,7 @@ class MedicationLog {
     required this.date,
     this.actualTime,
     this.status = MedicationStatus.pending,
+    this.notifiedPharmacist = false,
   });
 
   final String id;
@@ -19,6 +20,8 @@ class MedicationLog {
   final DateTime date;
   final DateTime? actualTime;
   final MedicationStatus status;
+  /// Flag to track if pharmacist was notified about this missed medication
+  final bool notifiedPharmacist;
 
   MedicationLog copyWith({
     String? id,
@@ -29,6 +32,7 @@ class MedicationLog {
     DateTime? date,
     DateTime? actualTime,
     MedicationStatus? status,
+    bool? notifiedPharmacist,
   }) {
     return MedicationLog(
       id: id ?? this.id,
@@ -39,6 +43,7 @@ class MedicationLog {
       date: date ?? this.date,
       actualTime: actualTime ?? this.actualTime,
       status: status ?? this.status,
+      notifiedPharmacist: notifiedPharmacist ?? this.notifiedPharmacist,
     );
   }
 
@@ -52,6 +57,7 @@ class MedicationLog {
       'date': date.toIso8601String(),
       'actualTime': actualTime?.toIso8601String(),
       'status': status.name,
+      'notifiedPharmacist': notifiedPharmacist,
     };
   }
 
@@ -68,6 +74,7 @@ class MedicationLog {
         (s) => s.name == map['status'],
         orElse: () => MedicationStatus.pending,
       ),
+      notifiedPharmacist: map['notifiedPharmacist'] ?? false,
     );
   }
 

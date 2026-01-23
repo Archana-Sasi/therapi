@@ -400,6 +400,68 @@ class AuthService {
     }
   }
 
+  /// Resets all medications for all patients (admin function)
+  /// Clears: medications field, reminders subcollection, medication_logs subcollection
+  Future<Map<String, dynamic>> resetAllPatientMedications() async {
+    int patientsReset = 0;
+    int remindersDeleted = 0;
+    int logsDeleted = 0;
+
+    try {
+      // Get all patients
+      final patientsSnapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'patient')
+          .get();
+
+      for (final patientDoc in patientsSnapshot.docs) {
+        final patientId = patientDoc.id;
+
+        // Clear medications array in user document
+        await _firestore.collection('users').doc(patientId).update({
+          'medications': [],
+        });
+
+        // Delete all reminders
+        final remindersSnapshot = await _firestore
+            .collection('users')
+            .doc(patientId)
+            .collection('reminders')
+            .get();
+        for (final doc in remindersSnapshot.docs) {
+          await doc.reference.delete();
+          remindersDeleted++;
+        }
+
+        // Delete all medication logs
+        final logsSnapshot = await _firestore
+            .collection('users')
+            .doc(patientId)
+            .collection('medication_logs')
+            .get();
+        for (final doc in logsSnapshot.docs) {
+          await doc.reference.delete();
+          logsDeleted++;
+        }
+
+        patientsReset++;
+      }
+
+      return {
+        'success': true,
+        'patientsReset': patientsReset,
+        'remindersDeleted': remindersDeleted,
+        'logsDeleted': logsDeleted,
+      };
+    } catch (e) {
+      print('Failed to reset patient medications: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
   /// Adds a medication with brand to the current user's medication list.
   Future<bool> addMedication(String drugId, String brandName) async {
     final user = _auth.currentUser;
@@ -724,6 +786,44 @@ class AuthService {
     return '$hour:$minute $period';
   }
 
+  /// Checks for missed medications (5+ minutes overdue) and notifies pharmacists automatically
+  Future<void> checkAndNotifyMissedMedications() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final now = DateTime.now();
+      final fiveMinutesAgo = now.subtract(const Duration(minutes: 5));
+      
+      // Get today's logs
+      final logs = await getTodaysMedicationLogs();
+      
+      for (final log in logs) {
+        // Check if medication is overdue by 5+ minutes and not yet notified
+        if (log.status == MedicationStatus.pending &&
+            log.scheduledTime.isBefore(fiveMinutesAgo) &&
+            !log.notifiedPharmacist) {
+          
+          // Mark as missed and update notifiedPharmacist flag
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('medication_logs')
+              .doc(log.id)
+              .update({
+                'status': MedicationStatus.missed.name,
+                'notifiedPharmacist': true,
+              });
+
+          // Notify pharmacists
+          await _notifyPharmacistsOfMissedMedication(user.uid, log);
+        }
+      }
+    } catch (e) {
+      print('Failed to check missed medications: $e');
+    }
+  }
+
   /// Creates medication logs for today based on reminders
   Future<void> generateTodaysLogs() async {
     final user = _auth.currentUser;
@@ -843,6 +943,63 @@ class AuthService {
     }
 
     return {'taken': taken, 'pending': pending, 'missed': missed};
+  }
+
+  /// Gets all missed medication logs from all patients (for pharmacist dashboard)
+  Future<List<Map<String, dynamic>>> getAllMissedMedicationLogs() async {
+    try {
+      // Get all patients
+      final usersSnapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'patient')
+          .get();
+
+      final List<Map<String, dynamic>> allMissed = [];
+
+      // For each patient, get their missed medication logs
+      for (final userDoc in usersSnapshot.docs) {
+        final userId = userDoc.id;
+        final userData = userDoc.data();
+        final patientName = userData['fullName'] ?? 'Unknown Patient';
+
+        // Get medication logs with status 'missed'
+        final logsSnapshot = await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('medication_logs')
+            .get();
+
+        // Filter missed logs client-side (to avoid needing composite index)
+        final missedLogs = logsSnapshot.docs.where((doc) {
+          final data = doc.data();
+          return data['status'] == 'missed';
+        });
+
+        for (final logDoc in missedLogs) {
+          final logData = logDoc.data();
+          allMissed.add({
+            'patientId': userId,
+            'patientName': patientName,
+            'drugId': logData['drugId'] ?? '',
+            'brandName': logData['brandName'] ?? '',
+            'scheduledTime': logData['scheduledTime'],
+            'date': logData['date'],
+          });
+        }
+      }
+
+      // Sort by date descending (most recent first)
+      allMissed.sort((a, b) {
+        final dateA = DateTime.tryParse(a['scheduledTime'] ?? '') ?? DateTime(2000);
+        final dateB = DateTime.tryParse(b['scheduledTime'] ?? '') ?? DateTime(2000);
+        return dateB.compareTo(dateA);
+      });
+
+      return allMissed;
+    } catch (e) {
+      print('Failed to get all missed medications: $e');
+      return [];
+    }
   }
 
   // ============ NOTIFICATION METHODS ============

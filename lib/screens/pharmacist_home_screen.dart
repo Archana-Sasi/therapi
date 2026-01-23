@@ -14,10 +14,12 @@ import 'chat_screen.dart';
 import 'consultations_screen.dart';
 import 'conversations_screen.dart';
 import 'drug_inventory_screen.dart';
+import 'missed_medications_screen.dart';
 import 'profile_screen.dart';
 import 'prescriptions_screen.dart';
 import 'reports_screen.dart';
 import 'send_notification_screen.dart';
+import 'settings_screen.dart';
 import 'symptom_history_screen.dart';
 
 class PharmacistHomeScreen extends StatefulWidget {
@@ -86,6 +88,13 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
         centerTitle: true,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            tooltip: 'Menu',
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -121,6 +130,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
           ),
         ],
       ),
+      drawer: _buildDrawer(context, user, theme),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -436,6 +446,19 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                     );
                   },
                 ),
+                _buildActionCard(
+                  icon: Icons.warning_amber_rounded,
+                  title: 'Missed Medications',
+                  color: const Color(0xFFEF4444), // Red
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MissedMedicationsScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -603,6 +626,208 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
       default:
         return Icons.person;
     }
+  }
+
+  Widget _buildDrawer(BuildContext context, dynamic user, ThemeData theme) {
+    return Drawer(
+      child: Column(
+        children: [
+          // Drawer Header with user info
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 24,
+              bottom: 24,
+              left: 20,
+              right: 20,
+            ),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.primary,
+                  theme.colorScheme.primary.withOpacity(0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 35,
+                  backgroundColor: Colors.white,
+                  backgroundImage: user?.photoUrl != null
+                      ? NetworkImage(user!.photoUrl!)
+                      : null,
+                  child: user?.photoUrl == null
+                      ? Text(
+                          user?.fullName?.isNotEmpty == true
+                              ? user!.fullName![0].toUpperCase()
+                              : 'A',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  user?.fullName ?? 'Admin',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'ADMIN',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Menu Items
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildDrawerItem(
+                  icon: Icons.person_outline,
+                  title: 'Profile',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, ProfileScreen.route);
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.warning_amber_rounded,
+                  title: 'Missed Medications',
+                  color: const Color(0xFFEF4444),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MissedMedicationsScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Prescriptions',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PrescriptionsScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.inventory_2_outlined,
+                  title: 'Drug Inventory',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DrugInventoryScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.chat_bubble_outline,
+                  title: 'Patient Chats',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ConversationsScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.video_call_outlined,
+                  title: 'Consultations',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ConsultationsScreen()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.analytics_outlined,
+                  title: 'Reports',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ReportsScreen()),
+                    );
+                  },
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.settings_outlined,
+                  title: 'Settings',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, SettingsScreen.route);
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.logout,
+                  title: 'Logout',
+                  color: Colors.red,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await context.read<AuthProvider>().signOut();
+                    if (!context.mounted) return;
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      ArrivalScreen.route,
+                      (_) => false,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(
+        title,
+        style: TextStyle(color: color),
+      ),
+      onTap: onTap,
+    );
   }
 }
 

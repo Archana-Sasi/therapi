@@ -10,7 +10,7 @@ import '../services/auth_service.dart';
 import 'arrival_screen.dart';
 import 'consultations_screen.dart';
 import 'conversations_screen.dart';
-import 'drug_directory_screen.dart';
+import 'disease_selection_screen.dart';
 import 'my_medications_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
@@ -85,6 +85,9 @@ class _HomeScreenState extends State<HomeScreen> {
     
     // Generate today's logs based on reminders
     await _authService.generateTodaysLogs();
+    
+    // Check for medications that are 5+ minutes overdue and notify pharmacists
+    await _authService.checkAndNotifyMissedMedications();
     
     // Get summary and pending logs
     final summary = await _authService.getTodaysSummary();
@@ -516,7 +519,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const DrugDirectoryScreen(),
+                          builder: (_) => const DiseaseSelectionScreen(),
                         ),
                       );
                     },

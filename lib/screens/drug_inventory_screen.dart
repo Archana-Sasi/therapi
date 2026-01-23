@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/curated_medicine_data.dart';
 import '../data/drug_data.dart';
 import '../data/tamil_translations.dart';
 import '../models/custom_drug.dart';
@@ -25,15 +26,18 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
   final _authService = AuthService();
   
   List<DrugModel> _staticDrugs = [];
+  List<CuratedMedicine> _curatedMedicines = [];
   List<CustomDrug> _customDrugs = [];
   List<dynamic> _allDrugs = []; // Combined list
   List<dynamic> _filteredDrugs = [];
   String _selectedCategory = 'all';
   bool _isLoading = true;
   
-  // Simple filter - just All drugs or Custom drugs added by pharmacist
+  // Filter categories
   final List<Map<String, dynamic>> _categories = [
     {'id': 'all', 'name': 'All Drugs', 'icon': Icons.medication},
+    {'id': 'curated', 'name': 'Curated (600+)', 'icon': Icons.verified},
+    {'id': 'basic', 'name': 'Basic Database', 'icon': Icons.inventory_2},
     {'id': 'custom', 'name': 'Custom Added', 'icon': Icons.star},
   ];
 
@@ -46,14 +50,17 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
   Future<void> _loadDrugs() async {
     setState(() => _isLoading = true);
     
-    // Load static drugs
+    // Load curated medicines (600+)
+    _curatedMedicines = CuratedMedicineData.medicines;
+    
+    // Load static drugs (50+)
     _staticDrugs = DrugData.drugs;
     
     // Load custom drugs from Firestore
     _customDrugs = await _authService.getCustomDrugs();
     
-    // Combine both lists
-    _allDrugs = [..._staticDrugs, ..._customDrugs];
+    // Combine ALL lists - curated + static + custom
+    _allDrugs = [..._curatedMedicines, ..._staticDrugs, ..._customDrugs];
     _filteredDrugs = _allDrugs;
     
     if (mounted) {
@@ -70,25 +77,29 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
   String _getDrugGenericName(dynamic drug) {
     if (drug is DrugModel) return drug.genericName;
     if (drug is CustomDrug) return drug.genericName;
+    if (drug is CuratedMedicine) return drug.genericName;
     return '';
   }
 
   List<String> _getDrugBrandNames(dynamic drug) {
     if (drug is DrugModel) return drug.brandNames;
     if (drug is CustomDrug) return drug.brandNames;
+    if (drug is CuratedMedicine) return [drug.brandName];
     return [];
   }
 
   String _getDrugCategory(dynamic drug) {
     if (drug is DrugModel) return drug.category;
     if (drug is CustomDrug) return drug.category;
+    if (drug is CuratedMedicine) return drug.category;
     return '';
   }
 
-  List<String> _getDrugDiseases(dynamic drug) {
-    if (drug is DrugModel) return drug.diseases;
-    if (drug is CustomDrug) return drug.diseases;
-    return [];
+  String _getDrugType(dynamic drug) {
+    if (drug is CuratedMedicine) return 'curated';
+    if (drug is DrugModel) return 'basic';
+    if (drug is CustomDrug) return 'custom';
+    return 'unknown';
   }
 
   bool _isCustomDrug(dynamic drug) {
@@ -101,6 +112,10 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
       
       if (_selectedCategory == 'custom') {
         drugs = _customDrugs;
+      } else if (_selectedCategory == 'curated') {
+        drugs = _curatedMedicines;
+      } else if (_selectedCategory == 'basic') {
+        drugs = _staticDrugs;
       } else {
         drugs = _allDrugs;
       }
@@ -108,10 +123,12 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
       if (query.isEmpty) {
         _filteredDrugs = drugs;
       } else {
-        _filteredDrugs = drugs.where((drug) =>
-            _getDrugGenericName(drug).toLowerCase().contains(query.toLowerCase()) ||
-            _getDrugBrandNames(drug).any((b) => b.toLowerCase().contains(query.toLowerCase()))
-        ).toList();
+        _filteredDrugs = drugs.where((drug) {
+          final name = _getDrugGenericName(drug).toLowerCase();
+          final brands = _getDrugBrandNames(drug);
+          final q = query.toLowerCase();
+          return name.contains(q) || brands.any((b) => b.toLowerCase().contains(q));
+        }).toList();
       }
     });
   }
@@ -122,10 +139,114 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
       _searchController.clear();
       if (category == 'custom') {
         _filteredDrugs = _customDrugs;
+      } else if (category == 'curated') {
+        _filteredDrugs = _curatedMedicines;
+      } else if (category == 'basic') {
+        _filteredDrugs = _staticDrugs;
       } else {
         _filteredDrugs = _allDrugs;
       }
     });
+  }
+
+  Future<void> _showResetConfirmationDialog(BuildContext context, String Function(String) t) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 28),
+            const SizedBox(width: 8),
+            Text(t('Reset All Medications')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t('This will permanently delete:'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text('• ${t("All patient medications")}'),
+            Text('• ${t("All medication reminders")}'),
+            Text('• ${t("All medication logs")}'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Text(
+                t('This action cannot be undone!'),
+                style: TextStyle(
+                  color: Colors.red[700],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(t('Cancel')),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(t('Reset All')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Perform reset
+      final result = await _authService.resetAllPatientMedications();
+
+      // Close loading dialog
+      if (context.mounted) Navigator.pop(context);
+
+      // Show result
+      if (context.mounted) {
+        if (result['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '✓ Reset complete: ${result['patientsReset']} patients, '
+                '${result['remindersDeleted']} reminders, '
+                '${result['logsDeleted']} logs deleted',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to reset: ${result['error']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -152,6 +273,29 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadDrugs,
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              if (value == 'reset_all') {
+                _showResetConfirmationDialog(context, t);
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: 'reset_all',
+                child: Row(
+                  children: [
+                    Icon(Icons.restart_alt, color: Colors.red[700]),
+                    const SizedBox(width: 8),
+                    Text(
+                      t('Reset All Patient Medications'),
+                      style: TextStyle(color: Colors.red[700]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -191,7 +335,7 @@ class _DrugInventoryScreenState extends State<DrugInventoryScreen> {
                             Container(width: 1, height: 40, color: Colors.white30),
                             _buildStatItem(
                               icon: Icons.category,
-                              value: '${_categories.length - 1}',
+                              value: '${_allDrugs.map((d) => _getDrugCategory(d)).toSet().length}',
                               label: 'Categories',
                             ),
                             Container(width: 1, height: 40, color: Colors.white30),
