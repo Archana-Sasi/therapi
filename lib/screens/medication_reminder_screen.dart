@@ -284,15 +284,25 @@ class _MedicationReminderScreenState extends State<MedicationReminderScreen> {
 
             // Enable/Disable Toggle
             Card(
-              child: SwitchListTile(
-                title: const Text('Enable Reminder'),
-                subtitle: Text(_isEnabled ? 'Notifications active' : 'Notifications paused'),
-                value: _isEnabled,
-                onChanged: (value) => setState(() => _isEnabled = value),
-                secondary: Icon(
+              child: ListTile(
+                leading: Icon(
                   _isEnabled ? Icons.notifications_active : Icons.notifications_off,
                   color: _isEnabled ? Colors.green : Colors.grey,
                 ),
+                title: const Text('Enable Reminder'),
+                subtitle: Text(_isEnabled ? 'Notifications active' : 'Notifications paused'),
+                trailing: Transform.scale(
+                  scale: 0.8,
+                  child: Switch(
+                    value: _isEnabled,
+                    onChanged: (value) => setState(() => _isEnabled = value),
+                    activeColor: Colors.white,
+                    activeTrackColor: const Color(0xFF2196F3),
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: Colors.grey.shade400,
+                  ),
+                ),
+                onTap: () => setState(() => _isEnabled = !_isEnabled),
               ),
             ),
             const SizedBox(height: 24),

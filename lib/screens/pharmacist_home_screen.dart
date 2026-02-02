@@ -7,13 +7,15 @@ import '../models/chat_conversation.dart';
 import '../models/drug_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 import '../services/auth_service.dart';
 import '../services/data_export_service.dart';
 import 'arrival_screen.dart';
 import 'chat_screen.dart';
 import 'consultations_screen.dart';
 import 'conversations_screen.dart';
-import 'drug_inventory_screen.dart';
+import 'disease_selection_screen.dart';
+import 'manage_users_screen.dart';
 import 'missed_medications_screen.dart';
 import 'profile_screen.dart';
 import 'prescriptions_screen.dart';
@@ -96,25 +98,6 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
           ),
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => Navigator.pushNamed(context, ProfileScreen.route),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: theme.colorScheme.primaryContainer,
-                backgroundImage:
-                    user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
-                child: user?.photoUrl == null
-                    ? Icon(
-                        Icons.person,
-                        size: 20,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      )
-                    : null,
-              ),
-            ),
-          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Logout',
@@ -138,7 +121,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
           children: [
             // Welcome Card
             Card(
-              color: const Color(0xFFE0F2F1), // Light vibrant teal
+              color: theme.colorScheme.secondaryContainer.withOpacity(0.5), // Light vibrant teal -> secondaryContainer (light)
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Row(
@@ -146,13 +129,13 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFB2DFDB), // Vibrant teal 100
+                        color: theme.colorScheme.secondaryContainer, // Vibrant teal 100 -> secondaryContainer
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.local_pharmacy,
                         size: 32,
-                        color: Color(0xFF00796B), // Vibrant teal 700
+                        color: theme.colorScheme.onSecondaryContainer, // Vibrant teal 700 -> onSecondaryContainer
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -179,13 +162,13 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.teal,
+                              color: theme.colorScheme.secondary,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
+                            child: Text(
                               'ADMIN',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: theme.colorScheme.onSecondary,
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -368,9 +351,9 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.3,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.6,
               children: [
                 _buildActionCard(
                   icon: Icons.notifications_active,
@@ -393,7 +376,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const DrugInventoryScreen(),
+                        builder: (_) => const DiseaseSelectionScreen(),
                       ),
                     );
                   },
@@ -406,17 +389,6 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const PrescriptionsScreen()),
-                    );
-                  },
-                ),
-                _buildActionCard(
-                  icon: Icons.analytics_outlined,
-                  title: 'Reports',
-                  color: const Color(0xFF7C4DFF), // Vibrant Purple
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ReportsScreen()),
                     );
                   },
                 ),
@@ -579,23 +551,28 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 28),
+                child: Icon(icon, color: color, size: 20),
               ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                textAlign: TextAlign.center,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -716,58 +693,13 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                   },
                 ),
                 _buildDrawerItem(
-                  icon: Icons.warning_amber_rounded,
-                  title: 'Missed Medications',
-                  color: const Color(0xFFEF4444),
+                  icon: Icons.people_alt,
+                  title: 'Manage Users',
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const MissedMedicationsScreen()),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Prescriptions',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const PrescriptionsScreen()),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
-                  icon: Icons.inventory_2_outlined,
-                  title: 'Drug Inventory',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DrugInventoryScreen()),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
-                  icon: Icons.chat_bubble_outline,
-                  title: 'Patient Chats',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ConversationsScreen()),
-                    );
-                  },
-                ),
-                _buildDrawerItem(
-                  icon: Icons.video_call_outlined,
-                  title: 'Consultations',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ConsultationsScreen()),
+                      MaterialPageRoute(builder: (_) => const ManageUsersScreen()),
                     );
                   },
                 ),
@@ -783,6 +715,30 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                   },
                 ),
                 const Divider(),
+                // Dark Mode Toggle
+                Consumer<ThemeProvider>(
+                  builder: (context, themeProvider, _) {
+                    return ListTile(
+                      leading: Icon(
+                        themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                        color: themeProvider.isDarkMode ? Colors.amber : null,
+                      ),
+                      title: const Text('Dark Mode'),
+                      trailing: Transform.scale(
+                        scale: 0.8,
+                        child: Switch(
+                          value: themeProvider.isDarkMode,
+                          onChanged: (value) => themeProvider.toggleTheme(),
+                          activeColor: Colors.white,
+                          activeTrackColor: const Color(0xFF2196F3),
+                          inactiveThumbColor: Colors.white,
+                          inactiveTrackColor: Colors.grey.shade400,
+                        ),
+                      ),
+                      onTap: () => themeProvider.toggleTheme(),
+                    );
+                  },
+                ),
                 _buildDrawerItem(
                   icon: Icons.settings_outlined,
                   title: 'Settings',

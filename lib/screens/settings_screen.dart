@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/language_provider.dart';
+import '../providers/theme_provider.dart';
+import '../services/data_export_service.dart';
 import 'arrival_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,17 +21,21 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
-  bool _darkMode = false;
   bool _analyticsEnabled = true;
+  bool _isExporting = false;
+  final _dataExportService = DataExportService();
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
         centerTitle: true,
-        backgroundColor: const Color(0xFFD32F2F),
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -39,8 +48,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Card(
               child: Column(
                 children: [
-                  SwitchListTile(
-                    secondary: Container(
+                  ListTile(
+                    leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: const Color(0xFF6366F1).withOpacity(0.1),
@@ -53,16 +62,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     title: const Text('Push Notifications'),
                     subtitle: const Text('Receive alerts and reminders'),
-                    value: _notificationsEnabled,
-                    onChanged: (value) {
-                      setState(() => _notificationsEnabled = value);
+                    trailing: Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: _notificationsEnabled,
+                        onChanged: (value) {
+                          setState(() => _notificationsEnabled = value);
+                          _showSavedSnackbar();
+                        },
+                        activeColor: Colors.white,
+                        activeTrackColor: const Color(0xFF2196F3),
+                        inactiveThumbColor: Colors.white,
+                        inactiveTrackColor: Colors.grey.shade400,
+                      ),
+                    ),
+                    onTap: () {
+                      setState(() => _notificationsEnabled = !_notificationsEnabled);
                       _showSavedSnackbar();
                     },
-                    activeColor: const Color(0xFF6366F1),
                   ),
                   const Divider(height: 1),
-                  SwitchListTile(
-                    secondary: Container(
+                  ListTile(
+                    leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: const Color(0xFF8B5CF6).withOpacity(0.1),
@@ -75,21 +96,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     title: const Text('Dark Mode'),
                     subtitle: const Text('Switch to dark theme'),
-                    value: _darkMode,
-                    onChanged: (value) {
-                      setState(() => _darkMode = value);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Dark mode coming soon!'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    activeColor: const Color(0xFF8B5CF6),
+                    trailing: Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: isDarkMode,
+                        onChanged: (value) {
+                          themeProvider.toggleTheme();
+                        },
+                        activeColor: Colors.white,
+                        activeTrackColor: const Color(0xFF2196F3),
+                        inactiveThumbColor: Colors.white,
+                        inactiveTrackColor: Colors.grey.shade400,
+                      ),
+                    ),
+                    onTap: () => themeProvider.toggleTheme(),
                   ),
                   const Divider(height: 1),
-                  SwitchListTile(
-                    secondary: Container(
+                  ListTile(
+                    leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: const Color(0xFF10B981).withOpacity(0.1),
@@ -102,12 +126,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     title: const Text('Usage Analytics'),
                     subtitle: const Text('Help improve the app'),
-                    value: _analyticsEnabled,
-                    onChanged: (value) {
-                      setState(() => _analyticsEnabled = value);
+                    trailing: Transform.scale(
+                      scale: 0.8,
+                      child: Switch(
+                        value: _analyticsEnabled,
+                        onChanged: (value) {
+                          setState(() => _analyticsEnabled = value);
+                          _showSavedSnackbar();
+                        },
+                        activeColor: Colors.white,
+                        activeTrackColor: const Color(0xFF2196F3),
+                        inactiveThumbColor: Colors.white,
+                        inactiveTrackColor: Colors.grey.shade400,
+                      ),
+                    ),
+                    onTap: () {
+                      setState(() => _analyticsEnabled = !_analyticsEnabled);
                       _showSavedSnackbar();
                     },
-                    activeColor: const Color(0xFF10B981),
                   ),
                 ],
               ),
@@ -135,10 +171,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: Text(
                     langProvider.currentLanguage.nativeName,
                   ),
-                  trailing: Switch(
-                    value: langProvider.isTamil,
-                    onChanged: (_) => langProvider.toggleLanguage(),
-                    activeColor: const Color(0xFF6366F1),
+                  trailing: Transform.scale(
+                    scale: 0.8,
+                    child: Switch(
+                      value: langProvider.isTamil,
+                      onChanged: (_) => langProvider.toggleLanguage(),
+                      activeColor: Colors.white,
+                      activeTrackColor: const Color(0xFF2196F3),
+                      inactiveThumbColor: Colors.white,
+                      inactiveTrackColor: Colors.grey.shade400,
+                    ),
                   ),
                   onTap: () => langProvider.toggleLanguage(),
                 ),
@@ -165,16 +207,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     title: const Text('Export Data'),
-                    subtitle: const Text('Download user data as CSV'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Export feature coming soon!'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
+                    subtitle: _isExporting 
+                        ? const Text('Generating report...')
+                        : const Text('Download user data as PDF'),
+                    trailing: _isExporting
+                        ? const SizedBox(
+                            width: 20, 
+                            height: 20, 
+                            child: CircularProgressIndicator(strokeWidth: 2)
+                          )
+                        : const Icon(Icons.chevron_right),
+                    onTap: _isExporting ? null : _handleDataExport,
                   ),
                   const Divider(height: 1),
                   ListTile(
@@ -285,17 +328,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSectionTitle(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: const Color(0xFFD32F2F)),
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 8),
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
     );
+  }
+
+  Future<void> _handleDataExport() async {
+    final user = context.read<AuthProvider>().user;
+    if (user == null) return;
+
+    setState(() => _isExporting = true);
+
+    String? filePath;
+    if (user.role == 'pharmacist') {
+       filePath = await _dataExportService.exportPharmacistDataAsPdf(user);
+    } else {
+       filePath = await _dataExportService.exportUserDataAsPdf(user);
+    }
+
+    if (mounted) {
+      setState(() => _isExporting = false);
+      if (filePath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Report saved to: $filePath'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to generate report'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showSavedSnackbar() {
@@ -306,8 +384,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-
-  // Language dialog removed - now using toggle switch in Consumer<LanguageProvider>
 
   void _showClearCacheDialog() {
     showDialog(
@@ -321,14 +397,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Cache cleared successfully'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              
+              // Clear temporary directory
+              try {
+                final tempDir = await getTemporaryDirectory();
+                if (await tempDir.exists()) {
+                  await tempDir.delete(recursive: true);
+                }
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Cache cleared successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to clear cache'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),

@@ -793,15 +793,15 @@ class AuthService {
 
     try {
       final now = DateTime.now();
-      final fiveMinutesAgo = now.subtract(const Duration(minutes: 5));
+      final tenMinutesAgo = now.subtract(const Duration(minutes: 10));
       
       // Get today's logs
       final logs = await getTodaysMedicationLogs();
       
       for (final log in logs) {
-        // Check if medication is overdue by 5+ minutes and not yet notified
+        // Check if medication is overdue by 10+ minutes and not yet notified
         if (log.status == MedicationStatus.pending &&
-            log.scheduledTime.isBefore(fiveMinutesAgo) &&
+            log.scheduledTime.isBefore(tenMinutesAgo) &&
             !log.notifiedPharmacist) {
           
           // Mark as missed and update notifiedPharmacist flag
@@ -980,6 +980,9 @@ class AuthService {
           allMissed.add({
             'patientId': userId,
             'patientName': patientName,
+            'opNumber': userData['opNumber'] ?? '',
+            'phoneNumber': userData['phoneNumber'] ?? '',
+            'age': userData['age'],
             'drugId': logData['drugId'] ?? '',
             'brandName': logData['brandName'] ?? '',
             'scheduledTime': logData['scheduledTime'],

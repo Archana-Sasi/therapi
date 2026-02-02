@@ -86,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Generate today's logs based on reminders
     await _authService.generateTodaysLogs();
     
-    // Check for medications that are 5+ minutes overdue and notify pharmacists
+    // Check for medications that are 10+ minutes overdue and notify pharmacists
     await _authService.checkAndNotifyMissedMedications();
     
     // Get summary and pending logs
@@ -104,17 +104,38 @@ class _HomeScreenState extends State<HomeScreen> {
       log.status == MedicationStatus.pending && 
       now.isAfter(log.scheduledTime)
     ).toList();
+
+    // Deduplicate logs (in case of multiple reminders for same drug/time)
+    final uniquePending = <String, MedicationLog>{};
+    for (final log in pendingLogs) {
+      final key = '${log.brandName}_${log.scheduledTime.millisecondsSinceEpoch}';
+      if (!uniquePending.containsKey(key)) {
+        uniquePending[key] = log;
+      }
+    }
+    
+    final uniqueOverdue = <String, MedicationLog>{};
+    for (final log in overdueLogs) {
+      final key = '${log.brandName}_${log.scheduledTime.millisecondsSinceEpoch}';
+      if (!uniqueOverdue.containsKey(key)) {
+        uniqueOverdue[key] = log;
+      }
+    }
+    
+    // Convert back to lists
+    final dedupPendingLogs = uniquePending.values.toList();
+    final dedupOverdueLogs = uniqueOverdue.values.toList();
     
     // Sort pending by scheduled time (soonest first)
-    pendingLogs.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+    dedupPendingLogs.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
     // Sort overdue by scheduled time (most recent first)
-    overdueLogs.sort((a, b) => b.scheduledTime.compareTo(a.scheduledTime));
+    dedupOverdueLogs.sort((a, b) => b.scheduledTime.compareTo(a.scheduledTime));
     
     if (mounted) {
       setState(() {
         _summary = summary;
-        _pendingLogs = pendingLogs;
-        _overdueLogs = overdueLogs;
+        _pendingLogs = dedupPendingLogs;
+        _overdueLogs = dedupOverdueLogs;
         _isLoadingSummary = false;
       });
     }
@@ -345,19 +366,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             icon: Icons.check_circle,
                             value: _summary['taken'].toString(),
                             label: t('Taken'),
-                            color: const Color(0xFF00C853),
+                            color: theme.colorScheme.secondary,
                           ),
                           _SummaryItem(
                             icon: Icons.schedule,
                             value: _summary['pending'].toString(),
                             label: t('Pending'),
-                            color: const Color(0xFFFF9100),
+                            color: theme.colorScheme.tertiary,
                           ),
                           _SummaryItem(
                             icon: Icons.cancel,
                             value: _summary['missed'].toString(),
                             label: t('Missed'),
-                            color: const Color(0xFFFF5252),
+                            color: theme.colorScheme.error,
                           ),
                         ],
                       ),
@@ -371,13 +392,13 @@ class _HomeScreenState extends State<HomeScreen> {
               if (_overdueLogs.isNotEmpty) ...[
                 Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.red[400], size: 20),
+                    Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error, size: 20),
                     const SizedBox(width: 8),
                     Text(
                       t('Overdue Medications'),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Colors.red[700],
+                        color: theme.colorScheme.error,
                       ),
                     ),
                   ],
@@ -385,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 8),
                 ...(_overdueLogs.take(5).map((log) => Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  color: Colors.red.shade50,
+                  color: theme.colorScheme.errorContainer.withOpacity(0.3),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(
@@ -397,10 +418,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: Colors.red.shade100,
+                                color: theme.colorScheme.errorContainer,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(Icons.medication, color: Colors.red[700]),
+                              child: Icon(Icons.medication, color: theme.colorScheme.error),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -413,7 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   Text(
                                     'Was due: ${_formatTime(log.scheduledTime)}',
-                                    style: TextStyle(color: Colors.red[400], fontSize: 12),
+                                    style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
                                   ),
                                 ],
                               ),
@@ -424,13 +445,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         Row(
                           children: [
                             Expanded(
-                              child: OutlinedButton.icon(
+                                child: OutlinedButton.icon(
                                 onPressed: () => _markAsMissed(log),
                                 icon: const Icon(Icons.close, size: 18),
                                 label: const Text('Miss'),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.red[700],
-                                  side: BorderSide(color: Colors.red[300]!),
+                                  foregroundColor: theme.colorScheme.error,
+                                  side: BorderSide(color: theme.colorScheme.error.withOpacity(0.5)),
                                 ),
                               ),
                             ),
@@ -441,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 icon: const Icon(Icons.check, size: 18),
                                 label: const Text('Take Now'),
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.green,
+                                  backgroundColor: theme.colorScheme.secondary,
                                 ),
                               ),
                             ),
@@ -470,10 +491,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: theme.colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.medication, color: Colors.blue),
+                      child: Icon(Icons.medication, color: theme.colorScheme.primary),
                     ),
                     title: Text(
                       log.brandName.isNotEmpty ? log.brandName : log.drugId,
@@ -845,10 +866,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     langProvider.isEnglish ? 'English' : 'தமிழ்',
                     style: TextStyle(color: Colors.grey[600], fontSize: 13),
                   ),
-                  trailing: Switch(
-                    value: langProvider.isTamil,
-                    onChanged: (_) => langProvider.toggleLanguage(),
-                    activeColor: theme.colorScheme.primary,
+                  trailing: Transform.scale(
+                    scale: 0.8,
+                    child: Switch(
+                      value: langProvider.isTamil,
+                      onChanged: (_) => langProvider.toggleLanguage(),
+                      activeColor: Colors.white,
+                      activeTrackColor: const Color(0xFF2196F3),
+                      inactiveThumbColor: Colors.white,
+                      inactiveTrackColor: Colors.grey.shade400,
+                    ),
                   ),
                   onTap: () => langProvider.toggleLanguage(),
                 ),

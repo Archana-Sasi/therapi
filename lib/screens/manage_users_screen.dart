@@ -16,45 +16,23 @@ class ManageUsersScreen extends StatefulWidget {
   State<ManageUsersScreen> createState() => _ManageUsersScreenState();
 }
 
-class _ManageUsersScreenState extends State<ManageUsersScreen>
-    with SingleTickerProviderStateMixin {
+class _ManageUsersScreenState extends State<ManageUsersScreen> {
   List<UserModel> _users = [];
   List<UserModel> _filteredUsers = [];
   bool _isLoading = true;
-  late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'all';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(_onTabChanged);
     _loadUsers();
   }
 
   @override
   void dispose() {
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) return;
-    switch (_tabController.index) {
-      case 0:
-        _selectedFilter = 'all';
-        break;
-      case 1:
-        _selectedFilter = 'patient';
-        break;
-      case 2:
-        _selectedFilter = 'pharmacist';
-        break;
-    }
-    _filterUsers();
   }
 
   Future<void> _loadUsers() async {
@@ -87,36 +65,58 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final patients = _users.where((u) => u.role == 'patient').toList();
+    final pharmacists = _users.where((u) => u.role == 'pharmacist').toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manage Users'),
         centerTitle: true,
-        backgroundColor: const Color(0xFFD32F2F), // Vibrant red for visibility
-        foregroundColor: Colors.white, // White text and icons
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: [
-            Tab(
-              text: 'All (${_users.length})',
-            ),
-            Tab(
-              text: 'Patients (${_users.where((u) => u.role == 'patient').length})',
-            ),
-            Tab(
-              text: 'Pharmacists (${_users.where((u) => u.role == 'pharmacist').length})',
-            ),
-          ],
-        ),
       ),
       body: Column(
         children: [
+          // Filter Chips Row (visible indicator of current filter)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                _buildFilterChip(
+                  label: 'All',
+                  count: _users.length,
+                  isSelected: _selectedFilter == 'all',
+                  onTap: () {
+                    setState(() => _selectedFilter = 'all');
+                    _filterUsers();
+                  },
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Patients',
+                  count: patients.length,
+                  isSelected: _selectedFilter == 'patient',
+                  color: const Color(0xFF10B981),
+                  onTap: () {
+                    setState(() => _selectedFilter = 'patient');
+                    _filterUsers();
+                  },
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  label: 'Pharmacists',
+                  count: pharmacists.length,
+                  isSelected: _selectedFilter == 'pharmacist',
+                  color: const Color(0xFF3B82F6),
+                  onTap: () {
+                    setState(() => _selectedFilter = 'pharmacist');
+                    _filterUsers();
+                  },
+                ),
+              ],
+            ),
+          ),
           // Search Bar
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -135,7 +135,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: theme.colorScheme.surfaceContainerHighest,
               ),
               onChanged: (_) => _filterUsers(),
             ),
@@ -187,6 +187,84 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required int count,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final theme = Theme.of(context);
+    final itemColor = color ?? theme.colorScheme.primary;
+    
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: isSelected ? itemColor.withOpacity(0.2) : itemColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: itemColor, size: 20),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: isSelected ? itemColor : null,
+        ),
+      ),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? itemColor : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          count.toString(),
+          style: TextStyle(
+            color: isSelected ? Colors.white : theme.colorScheme.onSurface,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ),
+      selected: isSelected,
+      selectedTileColor: itemColor.withOpacity(0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required int count,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final theme = Theme.of(context);
+    final chipColor = color ?? theme.colorScheme.primary;
+    
+    return FilterChip(
+      selected: isSelected,
+      label: Text('$label ($count)'),
+      onSelected: (_) => onTap(),
+      selectedColor: chipColor.withOpacity(0.2),
+      checkmarkColor: chipColor,
+      labelStyle: TextStyle(
+        color: isSelected ? chipColor : theme.colorScheme.onSurface,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 12,
+      ),
+      side: BorderSide(
+        color: isSelected ? chipColor : theme.colorScheme.outline,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
     );
   }
 
@@ -359,8 +437,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
                       icon: const Icon(Icons.edit_outlined),
                       label: const Text('Change Role'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD32F2F),
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       ),
                     ),
                   ),
@@ -434,8 +512,8 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD32F2F),
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
               ),
               child: const Text('Save'),
             ),

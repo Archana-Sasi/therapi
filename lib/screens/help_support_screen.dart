@@ -321,47 +321,51 @@ class HelpSupportScreen extends StatelessWidget {
     final Uri emailUri = Uri(
       scheme: 'mailto',
       path: 'respiricare12@gmail.com',
-      
       queryParameters: {
         'subject': 'RespiriCare Support Request',
       },
     );
     try {
-      await launchUrl(emailUri);
+      if (!await launchUrl(emailUri)) {
+        throw Exception('Could not launch email');
+      }
     } catch (_) {
-      _showComingSoon(context, 'Email');
+      if (context.mounted) {
+        _showError(context, 'Could not launch email client');
+      }
     }
   }
 
   void _launchPhone(BuildContext context) async {
-    final Uri phoneUri = Uri(scheme: 'tel', path: '+1234567890');
+    final Uri phoneUri = Uri(scheme: 'tel', path: '+919361761935');
     try {
-      await launchUrl(phoneUri);
+      if (!await launchUrl(phoneUri)) {
+        throw Exception('Could not launch phone');
+      }
     } catch (_) {
-      _showComingSoon(context, 'Phone');
+      if (context.mounted) {
+        _showError(context, 'Could not launch phone dialer');
+      }
     }
   }
 
   void _launchUrl(BuildContext context, String url) async {
     try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
+        throw Exception('Could not launch URL');
+      }
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Could not open the link'),
-          backgroundColor: Colors.red.shade400,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      if (context.mounted) {
+        _showError(context, 'Could not open the link');
+      }
     }
   }
 
-  void _showComingSoon(BuildContext context, String feature) {
+  void _showError(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature - Coming soon!'),
-        backgroundColor: const Color(0xFF6366F1),
+        content: Text(message),
+        backgroundColor: Colors.red.shade400,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),

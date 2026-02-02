@@ -66,10 +66,16 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
               iconColor: const Color(0xFFA78BFA),
               title: 'Data Sharing with Pharmacist',
               subtitle: 'Allow pharmacist to view your health data',
-              trailing: Switch(
-                value: _dataSharing,
-                onChanged: (value) => setState(() => _dataSharing = value),
-                activeColor: const Color(0xFFA78BFA),
+              trailing: Transform.scale(
+                scale: 0.8,
+                child: Switch(
+                  value: _dataSharing,
+                  onChanged: (value) => setState(() => _dataSharing = value),
+                  activeColor: Colors.white,
+                  activeTrackColor: const Color(0xFF2196F3),
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: Colors.grey.shade400,
+                ),
               ),
             ),
             _buildSettingCard(
@@ -77,10 +83,16 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
               iconColor: const Color(0xFFC4B5FD),
               title: 'Analytics & Crash Reports',
               subtitle: 'Help us improve the app',
-              trailing: Switch(
-                value: _analyticsEnabled,
-                onChanged: (value) => setState(() => _analyticsEnabled = value),
-                activeColor: const Color(0xFFC4B5FD),
+              trailing: Transform.scale(
+                scale: 0.8,
+                child: Switch(
+                  value: _analyticsEnabled,
+                  onChanged: (value) => setState(() => _analyticsEnabled = value),
+                  activeColor: Colors.white,
+                  activeTrackColor: const Color(0xFF2196F3),
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: Colors.grey.shade400,
+                ),
               ),
             ),
             

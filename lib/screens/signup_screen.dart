@@ -21,9 +21,14 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _ageController = TextEditingController();
+  final _accessCodeController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureAccessCode = true;
   String _selectedRole = 'patient';
   String? _selectedGender;
+
+  // Access code for pharmacist registration
+  static const String _pharmacistAccessCode = 'PHARMA2026';
 
   static const List<Map<String, String>> _roles = [
     {'value': 'patient', 'label': 'User (Patient)'},
@@ -38,6 +43,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _ageController.dispose();
+    _accessCodeController.dispose();
     super.dispose();
   }
 
@@ -55,6 +61,19 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> _signup() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validate access code for pharmacist role
+    if (_selectedRole == 'pharmacist') {
+      if (_accessCodeController.text.trim() != _pharmacistAccessCode) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid access code'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
 
     final auth = context.read<AuthProvider>();
     try {
@@ -302,9 +321,47 @@ class _SignupScreenState extends State<SignupScreen> {
                           ))
                       .toList(),
                   onChanged: (value) {
-                    setState(() => _selectedRole = value ?? 'patient');
+                    setState(() {
+                      _selectedRole = value ?? 'patient';
+                      // Clear access code when switching away from pharmacist
+                      if (_selectedRole != 'pharmacist') {
+                        _accessCodeController.clear();
+                      }
+                    });
                   },
                 ),
+                const SizedBox(height: 16),
+
+                // Access Code field - only visible for pharmacist role
+                if (_selectedRole == 'pharmacist')
+                  TextFormField(
+                    controller: _accessCodeController,
+                    decoration: InputDecoration(
+                      labelText: 'Access Code',
+                      hintText: 'Enter pharmacist access code',
+                      prefixIcon: const Icon(Icons.key_outlined),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureAccessCode ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() => _obscureAccessCode = !_obscureAccessCode);
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    obscureText: _obscureAccessCode,
+                    validator: (value) {
+                      if (_selectedRole == 'pharmacist') {
+                        if (value == null || value.isEmpty) {
+                          return 'Access code is required for pharmacist';
+                        }
+                      }
+                      return null;
+                    },
+                  ),
                 const SizedBox(height: 24),
 
                 // Sign Up Button
@@ -352,11 +409,10 @@ class _SignupScreenState extends State<SignupScreen> {
                   height: 50,
                   child: OutlinedButton.icon(
                     onPressed: isLoading ? null : _signInWithGoogle,
-                    icon: Image.network(
-                      'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                    icon: Image.asset(
+                      'assets/images/google_logo.png',
                       height: 24,
                       width: 24,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata),
                     ),
                     label: const Text('Continue with Google'),
                     style: OutlinedButton.styleFrom(
@@ -373,7 +429,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 TextButton(
                   onPressed: isLoading
                       ? null
-                      : () => Navigator.pushReplacementNamed(
+                      : () => Navigator.pushNamed(
                             context,
                             LoginScreen.route,
                           ),

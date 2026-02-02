@@ -176,17 +176,18 @@ class ProfileScreen extends StatelessWidget {
                   );
                 },
               ),
-              _ProfileTile(
-                icon: Icons.help_outline,
-                title: 'Help & Support',
-                iconColor: const Color(0xFF3B82F6),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
-                  );
-                },
-              ),
+              if (user?.role != 'pharmacist')
+                _ProfileTile(
+                  icon: Icons.help_outline,
+                  title: 'Help & Support',
+                  iconColor: const Color(0xFF3B82F6),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+                    );
+                  },
+                ),
               _ProfileTile(
                 icon: Icons.info_outline,
                 title: 'About RespiriCare',

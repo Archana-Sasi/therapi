@@ -291,11 +291,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 50,
                   child: OutlinedButton.icon(
                     onPressed: isLoading ? null : _signInWithGoogle,
-                    icon: Image.network(
-                      'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                    icon: Image.asset(
+                      'assets/images/google_logo.png',
                       height: 24,
                       width: 24,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata),
                     ),
                     label: const Text('Continue with Google'),
                     style: OutlinedButton.styleFrom(
@@ -312,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextButton(
                   onPressed: isLoading
                       ? null
-                      : () => Navigator.pushReplacementNamed(
+                      : () => Navigator.pushNamed(
                             context,
                             SignupScreen.route,
                           ),

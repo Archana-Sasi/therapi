@@ -1,4 +1,4 @@
-package com.example.therap_app
+package com.example.Respiricare
 
 import io.flutter.embedding.android.FlutterActivity
 

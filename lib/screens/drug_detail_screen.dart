@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/drug_model.dart';
 import '../services/auth_service.dart';
+import 'medication_reminder_screen.dart';
 
 /// Screen showing detailed information about a specific drug
 class DrugDetailScreen extends StatefulWidget {
@@ -92,6 +93,42 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
         _selectedBrand = brandName;
         _isLoading = false;
       });
+
+      // Prompt for reminder
+      if (!mounted) return;
+      final wantReminder = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Set Reminder?'),
+          content: const Text(
+            'Would you like to set a reminder schedule for this medication? '
+            'It will only appear on your Home Screen schedule if you set a time.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('No, later'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Yes, set now'),
+            ),
+          ],
+        ),
+      );
+
+      if (wantReminder == true && mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MedicationReminderScreen(
+              drugId: widget.drug.id,
+              brandName: brandName,
+            ),
+          ),
+        );
+      }
+
     } else if (mounted) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
