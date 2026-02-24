@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'pharmacist_home_screen.dart';
+import 'doctor_home_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -33,6 +34,9 @@ class _LoginScreenState extends State<LoginScreen> {
     switch (role) {
       case 'pharmacist':
         route = PharmacistHomeScreen.route;
+        break;
+      case 'doctor':
+        route = DoctorHomeScreen.route;
         break;
       default:
         route = HomeScreen.route;

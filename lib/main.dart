@@ -9,6 +9,7 @@ import 'providers/theme_provider.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/arrival_screen.dart';
 import 'screens/disease_selection_screen.dart';
+import 'screens/doctor_home_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/manage_users_screen.dart';
@@ -19,7 +20,7 @@ import 'screens/profile_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/signup_screen.dart';
-import 'screens/otp_screen.dart';
+
 import 'screens/complete_profile_screen.dart';
 import 'screens/symptom_history_screen.dart';
 import 'screens/symptom_log_screen.dart';
@@ -472,8 +473,9 @@ class MyApp extends StatelessWidget {
               LoginScreen.route: (_) => const LoginScreen(),
               SignupScreen.route: (_) => const SignupScreen(),
               HomeScreen.route: (_) => const HomeScreen(),
-              ProfileScreen.route: (_) => const ProfileScreen(),
               PharmacistHomeScreen.route: (_) => const PharmacistHomeScreen(),
+              DoctorHomeScreen.route: (_) => const DoctorHomeScreen(),
+              ProfileScreen.route: (_) => const ProfileScreen(),
               AnalyticsScreen.route: (_) => const AnalyticsScreen(),
               ManageUsersScreen.route: (_) => const ManageUsersScreen(),
               DiseaseSelectionScreen.route: (_) => const DiseaseSelectionScreen(),

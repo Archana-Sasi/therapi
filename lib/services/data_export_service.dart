@@ -600,7 +600,7 @@ class DataExportService {
   }
 
   /// Medications table with disease information
-  pw.Widget _buildMedicationsTable(List<Map<String, String>> medications) {
+  pw.Widget _buildMedicationsTable(List<Map<String, dynamic>> medications) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -636,13 +636,13 @@ class DataExportService {
               )
             else
               ...medications.asMap().entries.map((entry) {
-                final drugId = entry.value['drugId'] ?? 'Unknown';
+                final drugId = (entry.value['drugId'] ?? 'Unknown').toString();
                 final diseases = _getDiseaseNamesForDrug(drugId);
                 return pw.TableRow(
                   children: [
                     _buildTableCell('${entry.key + 1}'),
                     _buildTableCell(drugId),
-                    _buildTableCell(entry.value['brandName'] ?? '--'),
+                    _buildTableCell((entry.value['brandName'] ?? '--').toString()),
                     _buildTableCell(diseases),
                   ],
                 );

@@ -1,19 +1,99 @@
-/// Model representing a medical prescription created by a pharmacist for a patient
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Individual medication item within a prescription
+class PrescriptionItem {
+  PrescriptionItem({
+    required this.drugId,
+    required this.genericName,
+    required this.brandName,
+    required this.dosage,
+    required this.duration,
+    this.instructions = '',
+    this.morning = 0,
+    this.afternoon = 0,
+    this.evening = 0,
+    this.night = 0,
+    this.beforeFood = true,
+  });
+
+  final String drugId;
+  final String genericName;
+  final String brandName;
+  final String dosage;
+  final String duration;
+  final String instructions;
+  final int morning;
+  final int afternoon;
+  final int evening;
+  final int night;
+  final bool beforeFood;
+
+  Map<String, dynamic> toMap() {
+    return {
+      'drugId': drugId,
+      'genericName': genericName,
+      'brandName': brandName,
+      'dosage': dosage,
+      'duration': duration,
+      'instructions': instructions,
+      'morning': morning,
+      'afternoon': afternoon,
+      'evening': evening,
+      'night': night,
+      'beforeFood': beforeFood,
+    };
+  }
+
+  factory PrescriptionItem.fromMap(Map<String, dynamic> map) {
+    return PrescriptionItem(
+      drugId: map['drugId'] ?? '',
+      genericName: map['genericName'] ?? '',
+      brandName: map['brandName'] ?? '',
+      dosage: map['dosage'] ?? '',
+      duration: map['duration'] ?? '',
+      instructions: map['instructions'] ?? '',
+      morning: _parseTabletCount(map['morning']),
+      afternoon: _parseTabletCount(map['afternoon']),
+      evening: _parseTabletCount(map['evening']),
+      night: _parseTabletCount(map['night']),
+      beforeFood: map['beforeFood'] ?? true,
+    );
+  }
+
+  static int _parseTabletCount(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is bool) return value ? 1 : 0;
+    return 0;
+  }
+}
+
+/// Model representing a medical prescription (can contain multiple medications)
 class Prescription {
-  const Prescription({
+  Prescription({
     required this.id,
     required this.patientId,
     required this.patientName,
     required this.pharmacistId,
     required this.pharmacistName,
-    required this.drugId,
-    required this.genericName,
-    required this.brandName,
-    required this.dosage,
-    required this.instructions,
-    required this.duration,
     required this.createdAt,
     this.isActive = true,
+    this.doctorId,
+    this.doctorName,
+    this.status = 'approved',
+    this.medications = const [],
+    // Legacy single-drug fields (kept for backward compat)
+    this.drugId = '',
+    this.genericName = '',
+    this.brandName = '',
+    this.dosage = '',
+    this.instructions = '',
+    this.duration = '',
+    this.morning = 0,
+    this.afternoon = 0,
+    this.evening = 0,
+    this.night = 0,
+    this.beforeFood = true,
   });
 
   final String id;
@@ -21,14 +101,46 @@ class Prescription {
   final String patientName;
   final String pharmacistId;
   final String pharmacistName;
+  final DateTime createdAt;
+  final bool isActive;
+  final String? doctorId;
+  final String? doctorName;
+  final String status;
+  final List<PrescriptionItem> medications;
+
+  // Legacy single-drug fields
   final String drugId;
   final String genericName;
   final String brandName;
   final String dosage;
   final String instructions;
   final String duration;
-  final DateTime createdAt;
-  final bool isActive;
+  final int morning;
+  final int afternoon;
+  final int evening;
+  final int night;
+  final bool beforeFood;
+
+  /// Returns medications list — if empty, falls back to legacy single-drug fields
+  List<PrescriptionItem> get effectiveMedications {
+    if (medications.isNotEmpty) return medications;
+    if (genericName.isEmpty) return [];
+    return [
+      PrescriptionItem(
+        drugId: drugId,
+        genericName: genericName,
+        brandName: brandName,
+        dosage: dosage,
+        duration: duration,
+        instructions: instructions,
+        morning: morning,
+        afternoon: afternoon,
+        evening: evening,
+        night: night,
+        beforeFood: beforeFood,
+      ),
+    ];
+  }
 
   Prescription copyWith({
     String? id,
@@ -36,14 +148,23 @@ class Prescription {
     String? patientName,
     String? pharmacistId,
     String? pharmacistName,
+    DateTime? createdAt,
+    bool? isActive,
+    String? doctorId,
+    String? doctorName,
+    String? status,
+    List<PrescriptionItem>? medications,
     String? drugId,
     String? genericName,
     String? brandName,
     String? dosage,
     String? instructions,
     String? duration,
-    DateTime? createdAt,
-    bool? isActive,
+    int? morning,
+    int? afternoon,
+    int? evening,
+    int? night,
+    bool? beforeFood,
   }) {
     return Prescription(
       id: id ?? this.id,
@@ -51,14 +172,23 @@ class Prescription {
       patientName: patientName ?? this.patientName,
       pharmacistId: pharmacistId ?? this.pharmacistId,
       pharmacistName: pharmacistName ?? this.pharmacistName,
+      createdAt: createdAt ?? this.createdAt,
+      isActive: isActive ?? this.isActive,
+      doctorId: doctorId ?? this.doctorId,
+      doctorName: doctorName ?? this.doctorName,
+      status: status ?? this.status,
+      medications: medications ?? this.medications,
       drugId: drugId ?? this.drugId,
       genericName: genericName ?? this.genericName,
       brandName: brandName ?? this.brandName,
       dosage: dosage ?? this.dosage,
       instructions: instructions ?? this.instructions,
       duration: duration ?? this.duration,
-      createdAt: createdAt ?? this.createdAt,
-      isActive: isActive ?? this.isActive,
+      morning: morning ?? this.morning,
+      afternoon: afternoon ?? this.afternoon,
+      evening: evening ?? this.evening,
+      night: night ?? this.night,
+      beforeFood: beforeFood ?? this.beforeFood,
     );
   }
 
@@ -69,47 +199,77 @@ class Prescription {
       'patientName': patientName,
       'pharmacistId': pharmacistId,
       'pharmacistName': pharmacistName,
+      'createdAt': createdAt.toIso8601String(),
+      'isActive': isActive,
+      'doctorId': doctorId,
+      'doctorName': doctorName,
+      'status': status,
+      'medications': medications.map((m) => m.toMap()).toList(),
+      // Legacy fields
       'drugId': drugId,
       'genericName': genericName,
       'brandName': brandName,
       'dosage': dosage,
       'instructions': instructions,
       'duration': duration,
-      'createdAt': createdAt.toIso8601String(),
-      'isActive': isActive,
+      'morning': morning,
+      'afternoon': afternoon,
+      'evening': evening,
+      'night': night,
+      'beforeFood': beforeFood,
     };
   }
 
   factory Prescription.fromMap(Map<String, dynamic> map) {
+    List<PrescriptionItem> meds = [];
+    if (map['medications'] != null && map['medications'] is List) {
+      meds = (map['medications'] as List)
+          .map((m) => PrescriptionItem.fromMap(Map<String, dynamic>.from(m)))
+          .toList();
+    }
+
     return Prescription(
       id: map['id'] ?? '',
       patientId: map['patientId'] ?? '',
       patientName: map['patientName'] ?? '',
       pharmacistId: map['pharmacistId'] ?? '',
       pharmacistName: map['pharmacistName'] ?? '',
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
+          : DateTime.now(),
+      isActive: map['isActive'] ?? true,
+      doctorId: map['doctorId'],
+      doctorName: map['doctorName'],
+      status: map['status'] ?? 'approved',
+      medications: meds,
       drugId: map['drugId'] ?? '',
       genericName: map['genericName'] ?? '',
       brandName: map['brandName'] ?? '',
       dosage: map['dosage'] ?? '',
       instructions: map['instructions'] ?? '',
       duration: map['duration'] ?? '',
-      createdAt: map['createdAt'] != null 
-          ? DateTime.parse(map['createdAt']) 
-          : DateTime.now(),
-      isActive: map['isActive'] ?? true,
+      morning: _parseTabletCount(map['morning']),
+      afternoon: _parseTabletCount(map['afternoon']),
+      evening: _parseTabletCount(map['evening']),
+      night: _parseTabletCount(map['night']),
+      beforeFood: map['beforeFood'] ?? true,
     );
   }
 
-  /// Get formatted date for display
+  static int _parseTabletCount(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is bool) return value ? 1 : 0;
+    return 0;
+  }
+
   String get formattedDate {
     return '${createdAt.day}/${createdAt.month}/${createdAt.year}';
   }
 
-  /// Get time ago string for display
   String get timeAgo {
     final now = DateTime.now();
     final diff = now.difference(createdAt);
-    
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';

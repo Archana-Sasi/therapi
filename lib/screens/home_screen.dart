@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,11 +12,14 @@ import 'arrival_screen.dart';
 import 'consultations_screen.dart';
 import 'conversations_screen.dart';
 import 'disease_selection_screen.dart';
+import '../services/video_consultation_service.dart';
 import 'my_medications_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'symptom_history_screen.dart';
+import 'prescription_sheet_screen.dart';
+import 'my_prescriptions_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,8 +31,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _authService = AuthService();
+  final AuthService _authService = AuthService();
+  final VideoConsultationService _videoService = VideoConsultationService();
+  String _greeting = '';
   Map<String, int> _summary = {'taken': 0, 'pending': 0, 'missed': 0};
+  List<MedicationLog> _todaysLogs = [];
   List<MedicationLog> _pendingLogs = [];
   List<MedicationLog> _overdueLogs = [];
   List<Prescription> _prescriptions = [];
@@ -36,14 +43,41 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingPrescriptions = true;
   int _unreadNotifications = 0;
   int _unreadChats = 0;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
+    // Safety check: Redirect Doctors/Pharmacists if they land here
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = context.read<AuthProvider>().user;
+      if (user != null) {
+        if (user.role == 'doctor') {
+           Navigator.pushReplacementNamed(context, '/doctor-home');
+           return;
+        } else if (user.role == 'pharmacist') {
+           Navigator.pushReplacementNamed(context, '/pharmacist-home');
+           return;
+        }
+      }
+    });
+
     _loadSummary();
     _loadNotificationCount();
     _loadPrescriptions();
     _loadUnreadChats();
+    // Auto-refresh every minute to move pending -> overdue
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted && _todaysLogs.isNotEmpty) {
+        _processLogs(_todaysLogs);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadUnreadChats() async {
@@ -89,56 +123,122 @@ class _HomeScreenState extends State<HomeScreen> {
     // Check for medications that are 10+ minutes overdue and notify pharmacists
     await _authService.checkAndNotifyMissedMedications();
     
-    // Get summary and pending logs
-    final summary = await _authService.getTodaysSummary();
+    // Get logs and process them locally
     final logs = await _authService.getTodaysMedicationLogs();
+    _processLogs(logs);
+  }
+
+  /// Re-evaluates pending vs overdue based on current time.
+  /// Called by _loadSummary and by the auto-refresh timer.
+  void _processLogs(List<MedicationLog> logs) {
+    if (!mounted) return;
     final now = DateTime.now();
-    
-    // Split into upcoming (future) and overdue (past but still pending)
-    final pendingLogs = logs.where((log) => 
-      log.status == MedicationStatus.pending && 
+
+    final pendingLogs = logs.where((log) =>
+      log.status == MedicationStatus.pending &&
       !now.isAfter(log.scheduledTime)
     ).toList();
-    
-    final overdueLogs = logs.where((log) => 
-      log.status == MedicationStatus.pending && 
+
+    final overdueLogs = logs.where((log) =>
+      log.status == MedicationStatus.pending &&
       now.isAfter(log.scheduledTime)
     ).toList();
 
-    // Deduplicate logs (in case of multiple reminders for same drug/time)
+    // Deduplicate
     final uniquePending = <String, MedicationLog>{};
     for (final log in pendingLogs) {
       final key = '${log.brandName}_${log.scheduledTime.millisecondsSinceEpoch}';
-      if (!uniquePending.containsKey(key)) {
-        uniquePending[key] = log;
-      }
+      uniquePending.putIfAbsent(key, () => log);
     }
-    
     final uniqueOverdue = <String, MedicationLog>{};
     for (final log in overdueLogs) {
       final key = '${log.brandName}_${log.scheduledTime.millisecondsSinceEpoch}';
-      if (!uniqueOverdue.containsKey(key)) {
-        uniqueOverdue[key] = log;
-      }
+      uniqueOverdue.putIfAbsent(key, () => log);
     }
-    
-    // Convert back to lists
-    final dedupPendingLogs = uniquePending.values.toList();
-    final dedupOverdueLogs = uniqueOverdue.values.toList();
-    
-    // Sort pending by scheduled time (soonest first)
-    dedupPendingLogs.sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
-    // Sort overdue by scheduled time (most recent first)
-    dedupOverdueLogs.sort((a, b) => b.scheduledTime.compareTo(a.scheduledTime));
-    
-    if (mounted) {
-      setState(() {
-        _summary = summary;
-        _pendingLogs = dedupPendingLogs;
-        _overdueLogs = dedupOverdueLogs;
-        _isLoadingSummary = false;
-      });
-    }
+
+    final dedupPending = uniquePending.values.toList()
+      ..sort((a, b) => a.scheduledTime.compareTo(b.scheduledTime));
+    final dedupOverdue = uniqueOverdue.values.toList()
+      ..sort((a, b) => b.scheduledTime.compareTo(a.scheduledTime));
+
+    // Recalculate summary counts locally
+    int taken = logs.where((l) => l.status == MedicationStatus.taken).length;
+    int missed = logs.where((l) => l.status == MedicationStatus.missed).length;
+    missed += dedupOverdue.length;
+
+    setState(() {
+      _todaysLogs = logs;
+      _pendingLogs = dedupPending;
+      _overdueLogs = dedupOverdue;
+      _summary = {'taken': taken, 'pending': dedupPending.length, 'missed': missed};
+      _isLoadingSummary = false;
+    });
+  }
+
+  String _formatTime(DateTime time) {
+    final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
+    final period = time.hour >= 12 ? 'PM' : 'AM';
+    return '${hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')} $period';
+  }
+
+  void _showMedicationList(String title, List<MedicationLog> logs, Color color) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.list_alt, color: color),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (logs.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Center(
+                  child: Text(
+                    'No medications in this category',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                height: 300,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: logs.length,
+                  itemBuilder: (context, index) {
+                    final log = logs[index];
+                    return ListTile(
+                      leading: Icon(Icons.medication, color: color),
+                      title: Text(log.brandName.isNotEmpty ? log.brandName : log.drugId),
+                      subtitle: Text('Scheduled: ${_formatTime(log.scheduledTime)}'),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _markAsTaken(MedicationLog log) async {
@@ -367,18 +467,30 @@ class _HomeScreenState extends State<HomeScreen> {
                             value: _summary['taken'].toString(),
                             label: t('Taken'),
                             color: theme.colorScheme.secondary,
+                            onTap: () {
+                              final takenLogs = _todaysLogs.where((l) => l.status == MedicationStatus.taken).toList();
+                              _showMedicationList('Taken', takenLogs, theme.colorScheme.secondary);
+                            },
                           ),
                           _SummaryItem(
                             icon: Icons.schedule,
                             value: _summary['pending'].toString(),
                             label: t('Pending'),
                             color: theme.colorScheme.tertiary,
+                            onTap: () {
+                              _showMedicationList('Pending', _pendingLogs, theme.colorScheme.tertiary);
+                            },
                           ),
                           _SummaryItem(
                             icon: Icons.cancel,
                             value: _summary['missed'].toString(),
                             label: t('Missed'),
                             color: theme.colorScheme.error,
+                            onTap: () {
+                              final missedLogs = _todaysLogs.where((l) => l.status == MedicationStatus.missed).toList();
+                              final combined = {...{for (var l in missedLogs) l.id: l}, ...{for (var l in _overdueLogs) l.id: l}}.values.toList();
+                              _showMedicationList('Missed', combined, theme.colorScheme.error);
+                            },
                           ),
                         ],
                       ),
@@ -609,19 +721,30 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (_isLoadingPrescriptions)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else
-                      IconButton(
-                        icon: const Icon(Icons.refresh, size: 20),
-                        onPressed: _loadPrescriptions,
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                      ),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const MyPrescriptionsScreen()),
+                          ),
+                          child: Text(t('View All'), style: const TextStyle(fontSize: 12)),
+                        ),
+                        if (_isLoadingPrescriptions)
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          IconButton(
+                            icon: const Icon(Icons.refresh, size: 20),
+                            onPressed: _loadPrescriptions,
+                            constraints: const BoxConstraints(),
+                            padding: EdgeInsets.zero,
+                          ),
+                      ],
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -640,7 +763,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 else
                   ...(_prescriptions.take(5).map((prescription) => Card(
                     margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PrescriptionSheetScreen(prescription: prescription),
+                          ),
+                        );
+                      },
+                      child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -662,13 +795,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '${prescription.genericName} (${prescription.brandName})',
+                                      _getPrescriptionTitle(prescription),
                                       style: const TextStyle(fontWeight: FontWeight.w600),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     Text(
-                                      prescription.dosage,
+                                      '${prescription.effectiveMedications.length} medication${prescription.effectiveMedications.length == 1 ? '' : 's'}',
                                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
                                     ),
                                   ],
@@ -679,50 +812,27 @@ class _HomeScreenState extends State<HomeScreen> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              Icon(Icons.timelapse, size: 14, color: Colors.grey[500]),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Duration: ${prescription.duration}',
-                                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                              ),
-                              const SizedBox(width: 12),
                               Icon(Icons.person, size: 14, color: Colors.grey[500]),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  'By ${prescription.pharmacistName}',
+                                  'Dr. ${prescription.doctorName ?? prescription.pharmacistName}',
                                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              Icon(Icons.calendar_today, size: 12, color: Colors.grey[500]),
+                              const SizedBox(width: 4),
+                              Text(
+                                prescription.formattedDate,
+                                style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                              ),
                             ],
                           ),
-                          if (prescription.instructions.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(Icons.info_outline, size: 14, color: Colors.blue[700]),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      prescription.instructions,
-                                      style: TextStyle(fontSize: 11, color: Colors.blue[700]),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
                         ],
                       ),
+                    ),
                     ),
                   ))),
               ],
@@ -733,11 +843,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _formatTime(DateTime time) {
-    final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.hour >= 12 ? 'PM' : 'AM';
-    return '$hour:$minute $period';
+
+  String _getPrescriptionTitle(Prescription prescription) {
+    final meds = prescription.effectiveMedications;
+    if (meds.isEmpty) return 'No medications';
+    if (meds.length == 1) return meds.first.genericName;
+    return '${meds.first.genericName} & ${meds.length - 1} more';
   }
 
   Widget _buildDrawer(BuildContext context, dynamic user, ThemeData theme) {
@@ -792,6 +903,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       : null,
                 ),
                 const SizedBox(height: 12),
+                _buildActionCard(
+                  icon: Icons.medical_services_outlined,
+                  label: 'Services',
+                  color: Colors.purple,
+                  onTap: () {
+                    // Navigate to services
+                  },
+                ),
+                _buildActionCard(
+                  icon: Icons.video_call_outlined,
+                  label: 'Consult Doctor',
+                  color: Colors.teal,
+                  onTap: () {
+                    _showJoinConsultationDialog();
+                  },
+                ),
                 Text(
                   user?.fullName ?? 'User',
                   style: const TextStyle(
@@ -939,6 +1066,52 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showJoinConsultationDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Join Consultation'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Enter Room Code or Doctor ID',
+            hintText: 'e.g. therap_app_doctor123',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (controller.text.isNotEmpty) {
+                Navigator.pop(context);
+                final roomName = controller.text.trim();
+                try {
+                  // If input is just ID, prepend prefix, otherwise use as is
+                  final fullRoomName = roomName.startsWith('therap_app_') 
+                      ? roomName 
+                      : 'therap_app_$roomName';
+                      
+                  await _videoService.launchMeeting(fullRoomName);
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not launch video call')),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Join'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDrawerItem({
     required IconData icon,
     required String title,
@@ -957,6 +1130,48 @@ class _HomeScreenState extends State<HomeScreen> {
       title: Text(title),
       trailing: trailing ?? const Icon(Icons.chevron_right),
       onTap: onTap,
+    );
+  }
+
+  Widget _buildActionCard({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1059,35 +1274,44 @@ class _SummaryItem extends StatelessWidget {
     required this.value,
     required this.label,
     required this.color,
+    this.onTap,
   });
 
   final IconData icon;
   final String value;
   final String label;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
         ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

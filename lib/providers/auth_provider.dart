@@ -80,10 +80,10 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> signInWithGoogle() async {
+  Future<void> signInWithGoogle({String role = 'patient'}) async {
     _setLoading(true);
     try {
-      _user = await _authService.signInWithGoogle();
+      _user = await _authService.signInWithGoogle(role: role);
     } finally {
       _setLoading(false);
     }

@@ -1,0 +1,36 @@
+﻿
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé A new version of Flutter is available!                  Γöé
+Γöé                                                         Γöé
+Γöé To update to the latest version, run "flutter upgrade". Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+
+flutter : Support 
+for Android x86 
+targets will be 
+removed in the next 
+stable release after 
+3.27. See https://git
+hub.com/flutter/flutt
+er/issues/157543 for 
+details.
+At line:1 char:1
++ flutter build apk 
+--debug 2>&1 | 
+Out-File -Encoding 
+utf8 build_tab.tx ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (Support   
+  for And...43 fo    
+r details.:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+Running Gradle task 'assembleDebug'...                            249.4s
+ΓêÜ Built build\app\outputs\flutter-apk\app-debug.apk

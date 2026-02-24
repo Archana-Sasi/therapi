@@ -149,8 +149,21 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       floatingActionButton: _userRole == 'patient'
           ? FloatingActionButton.extended(
               onPressed: _startNewConversation,
-              icon: const Icon(Icons.add),
-              label: const Text('New Chat'),
+              shape: const StadiumBorder(),
+              label: Row(
+                children: [
+                  const Icon(Icons.add, size: 24),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'New Chat',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+              ),
             )
           : null,
     );

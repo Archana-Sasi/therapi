@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'app_constants.dart';
+import '../utils/app_constants.dart';
+
 
 /// Shimmer loading effect widget for professional loading states
 class ShimmerLoading extends StatefulWidget {

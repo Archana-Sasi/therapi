@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'pharmacist_home_screen.dart';
+import 'doctor_home_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -29,10 +30,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   // Access code for pharmacist registration
   static const String _pharmacistAccessCode = 'PHARMA2026';
+  static const String _doctorAccessCode = 'DOCTOR2026';
 
   static const List<Map<String, String>> _roles = [
-    {'value': 'patient', 'label': 'User (Patient)'},
-    {'value': 'pharmacist', 'label': 'Admin (Pharmacist)'},
+    {'value': 'patient', 'label': 'Patient'},
+    {'value': 'pharmacist', 'label': 'Pharmacist'},
+    {'value': 'doctor', 'label': 'Doctor'},
   ];
 
   static const List<String> _genders = ['Male', 'Female', 'Other'];
@@ -53,6 +56,9 @@ class _SignupScreenState extends State<SignupScreen> {
       case 'pharmacist':
         route = PharmacistHomeScreen.route;
         break;
+      case 'doctor':
+        route = DoctorHomeScreen.route;
+        break;
       default:
         route = HomeScreen.route;
     }
@@ -68,6 +74,16 @@ class _SignupScreenState extends State<SignupScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Invalid access code'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    } else if (_selectedRole == 'doctor') {
+      if (_accessCodeController.text.trim() != _doctorAccessCode) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid access code for Doctor'),
             backgroundColor: Colors.red,
           ),
         );
@@ -108,11 +124,34 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    // Validate access code for Doctor/Pharmacist
+    if (_selectedRole == 'pharmacist') {
+      if (_accessCodeController.text != _pharmacistAccessCode) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid Pharmacist Access Code'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    } else if (_selectedRole == 'doctor') {
+      if (_accessCodeController.text != _doctorAccessCode) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid Doctor Access Code'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
     final auth = context.read<AuthProvider>();
     try {
-      await auth.signInWithGoogle();
+      await auth.signInWithGoogle(role: _selectedRole);
       if (!mounted) return;
-      _navigateByRole(auth.user?.role ?? 'patient');
+      _navigateByRole(auth.user?.role ?? _selectedRole);
     } catch (e) {
       if (!mounted) return;
       String message = 'Sign in failed';
@@ -281,6 +320,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     // Gender field
                     Expanded(
                       child: DropdownButtonFormField<String>(
+                        isExpanded: true,
                         value: _selectedGender,
                         decoration: InputDecoration(
                           labelText: 'Gender',
@@ -292,7 +332,10 @@ class _SignupScreenState extends State<SignupScreen> {
                         items: _genders
                             .map((g) => DropdownMenuItem(
                                   value: g.toLowerCase(),
-                                  child: Text(g),
+                                  child: Text(
+                                    g,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ))
                             .toList(),
                         onChanged: (value) {
@@ -306,6 +349,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 // Role Dropdown
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: _selectedRole,
                   decoration: InputDecoration(
                     labelText: 'Sign up as',
@@ -317,14 +361,17 @@ class _SignupScreenState extends State<SignupScreen> {
                   items: _roles
                       .map((role) => DropdownMenuItem(
                             value: role['value'],
-                            child: Text(role['label']!),
+                            child: Text(
+                              role['label']!,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ))
                       .toList(),
                   onChanged: (value) {
                     setState(() {
                       _selectedRole = value ?? 'patient';
-                      // Clear access code when switching away from pharmacist
-                      if (_selectedRole != 'pharmacist') {
+                      // Clear access code when switching away from pharmacist or doctor
+                      if (_selectedRole != 'pharmacist' && _selectedRole != 'doctor') {
                         _accessCodeController.clear();
                       }
                     });
@@ -332,13 +379,15 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Access Code field - only visible for pharmacist role
-                if (_selectedRole == 'pharmacist')
+                // Access Code field - only visible for pharmacist or doctor role
+                if (_selectedRole == 'pharmacist' || _selectedRole == 'doctor')
                   TextFormField(
                     controller: _accessCodeController,
                     decoration: InputDecoration(
                       labelText: 'Access Code',
-                      hintText: 'Enter pharmacist access code',
+                      hintText: _selectedRole == 'pharmacist' 
+                          ? 'Enter pharmacist access code' 
+                          : 'Enter doctor access code',
                       prefixIcon: const Icon(Icons.key_outlined),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -354,9 +403,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     obscureText: _obscureAccessCode,
                     validator: (value) {
-                      if (_selectedRole == 'pharmacist') {
+                      if (_selectedRole == 'pharmacist' || _selectedRole == 'doctor') {
                         if (value == null || value.isEmpty) {
-                          return 'Access code is required for pharmacist';
+                          return 'Access code is required for ${_selectedRole}';
                         }
                       }
                       return null;

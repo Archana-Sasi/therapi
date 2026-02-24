@@ -1,0 +1,55 @@
+﻿
+flutter : Support 
+for Android x86 
+targets will be 
+removed in the next 
+stable release after 
+3.27. See https://git
+hub.com/flutter/flutt
+er/issues/157543 for 
+details.
+At line:1 char:1
++ flutter build apk 
+--debug 2>&1 | 
+Out-File -Encoding 
+utf8 build_rx2.tx ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (Support   
+  for And...43 fo    
+r details.:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+Running Gradle task 'assembleDebug'...                          
+Invalid depfile: C:\M
+AD\Therap_app\.dart_t
+ool\flutter_build\c3e
+aeb6b0b415c7a25ab53ae
+ba3e0782\kernel_snaps
+hot_program.d
+Invalid depfile: C:\M
+AD\Therap_app\.dart_t
+ool\flutter_build\c3e
+aeb6b0b415c7a25ab53ae
+ba3e0782\kernel_snaps
+hot_program.d
+Invalid depfile: C:\M
+AD\Therap_app\.dart_t
+ool\flutter_build\c3e
+aeb6b0b415c7a25ab53ae
+ba3e0782\kernel_snaps
+hot_program.d
+Invalid depfile: C:\M
+AD\Therap_app\.dart_t
+ool\flutter_build\c3e
+aeb6b0b415c7a25ab53ae
+ba3e0782\kernel_snaps
+hot_program.d
+Running Gradle task 'assembleDebug'...                             81.4s
+ΓêÜ Built build\app\outputs\flutter-apk\app-debug.apk

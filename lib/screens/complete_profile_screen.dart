@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'pharmacist_home_screen.dart';
+import 'doctor_home_screen.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
   const CompleteProfileScreen({super.key});
@@ -23,8 +24,8 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   String? _selectedGender;
 
   static const List<Map<String, String>> _roles = [
-    {'value': 'patient', 'label': 'User (Patient)'},
-    {'value': 'pharmacist', 'label': 'Admin (Pharmacist)'},
+    {'value': 'patient', 'label': 'Patient'},
+    {'value': 'pharmacist', 'label': 'Pharmacist'},
   ];
 
   static const List<String> _genders = ['Male', 'Female', 'Other'];
@@ -42,6 +43,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     switch (role) {
       case 'pharmacist':
         route = PharmacistHomeScreen.route;
+        break;
+      case 'doctor':
+        route = DoctorHomeScreen.route;
         break;
       default:
         route = HomeScreen.route;

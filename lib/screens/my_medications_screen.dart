@@ -41,15 +41,24 @@ class _MyMedicationsScreenState extends State<MyMedicationsScreen> {
       final drugId = med['drugId'] ?? '';
       final drug = DrugData.getDrugById(drugId);
       if (drug != null) {
-        drugs.add(_MedicationWithBrand(
-          drug: drug,
-          brandName: med['brandName'] ?? '',
-        ));
-        // Find reminder for this drug
-        remindersMap[drugId] = allReminders.cast<MedicationReminder?>().firstWhere(
-          (r) => r?.drugId == drugId,
-          orElse: () => null,
-        );
+        final status = med['verificationStatus'] ?? 'unverified';
+        // Only show if NOT pending (or if unverified/rejected if you want those shown, 
+        // usually strictly 'verified' or 'unverified' (legacy). 
+        // The user requirement is "after verified it is added".
+        // So we might want to hide 'pending'. 
+        // Let's hide 'pending'.
+        if (status != 'pending') {
+          drugs.add(_MedicationWithBrand(
+            drug: drug,
+            brandName: med['brandName'] ?? '',
+            verificationStatus: status,
+          ));
+          // Find reminder for this drug
+          remindersMap[drugId] = allReminders.cast<MedicationReminder?>().firstWhere(
+            (r) => r?.drugId == drugId,
+            orElse: () => null,
+          );
+        }
       }
     }
     
@@ -271,6 +280,36 @@ class _MyMedicationsScreenState extends State<MyMedicationsScreen> {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
+                                          
+                                        const SizedBox(height: 8),
+                                        // Verification Status Badge
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: _getStatusColor(med.verificationStatus).withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: _getStatusColor(med.verificationStatus).withOpacity(0.3)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                _getStatusIcon(med.verificationStatus),
+                                                size: 10,
+                                                color: _getStatusColor(med.verificationStatus),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                med.verificationStatus.toUpperCase(),
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: _getStatusColor(med.verificationStatus),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                         // Category chip
                                         Container(
                                           padding: const EdgeInsets.symmetric(
@@ -378,6 +417,23 @@ class _MyMedicationsScreenState extends State<MyMedicationsScreen> {
                 ),
     );
   }
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'verified': return Colors.green;
+      case 'pending': return Colors.orange;
+      case 'rejected': return Colors.red;
+      default: return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'verified': return Icons.check_circle;
+      case 'pending': return Icons.access_time_filled;
+      case 'rejected': return Icons.cancel;
+      default: return Icons.help;
+    }
+  }
 }
 
 /// Helper class to hold medication with its selected brand
@@ -385,9 +441,11 @@ class _MedicationWithBrand {
   const _MedicationWithBrand({
     required this.drug,
     required this.brandName,
+    this.verificationStatus = 'unverified',
   });
 
   final DrugModel drug;
   final String brandName;
+  final String verificationStatus;
 }
 

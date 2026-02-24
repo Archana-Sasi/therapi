@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/chat_conversation.dart';
 import '../models/chat_message.dart';
@@ -69,7 +72,7 @@ class AuthService {
   }
 
   /// Signs in with Google.
-  Future<UserModel> signInWithGoogle() async {
+  Future<UserModel> signInWithGoogle({String role = 'patient'}) async {
     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
     if (googleUser == null) {
       throw Exception('Google sign-in cancelled');
@@ -84,12 +87,26 @@ class AuthService {
     final userCredential = await _auth.signInWithCredential(credential);
     final user = userCredential.user!;
     
+    // Check if user already exists
+    final existingUser = await getUserProfile(user.uid);
+    if (existingUser != null) {
+      // If a specific role was requested (e.g. Doctor) and it differs from existing,
+      // update it (assuming access code validation passed in UI)
+      if (role != 'patient' && existingUser.role != role) {
+         final updatedUser = existingUser.copyWith(role: role);
+         await _trySaveUserToFirestore(updatedUser);
+         return updatedUser;
+      }
+      return existingUser;
+    }
+    
+    // New user
     final userModel = UserModel(
       id: user.uid,
       email: user.email ?? '',
       fullName: user.displayName ?? 'User',
       photoUrl: user.photoURL,
-      role: 'patient',
+      role: role,
     );
     
     // Try to save to Firestore, but don't fail if unavailable
@@ -463,20 +480,74 @@ class AuthService {
   }
 
   /// Adds a medication with brand to the current user's medication list.
-  Future<bool> addMedication(String drugId, String brandName) async {
+  Future<bool> addMedication(String drugId, String brandName, {String? prescriptionUrl}) async {
     final user = _auth.currentUser;
     if (user == null) return false;
 
     try {
+      final medicationData = {
+        'drugId': drugId,
+        'brandName': brandName,
+        'verificationStatus': prescriptionUrl != null ? 'pending' : 'unverified',
+      };
+      
+      if (prescriptionUrl != null) {
+        medicationData['prescriptionUrl'] = prescriptionUrl;
+      }
+
       await _firestore.collection('users').doc(user.uid).set({
-        'medications': FieldValue.arrayUnion([{
-          'drugId': drugId,
-          'brandName': brandName,
-        }]),
+        'medications': FieldValue.arrayUnion([medicationData]),
       }, SetOptions(merge: true));
       return true;
     } catch (e) {
       print('Failed to add medication: $e');
+      return false;
+    }
+  }
+
+  /// Uploads a prescription image to Cloudinary and returns the URL.
+  Future<String?> uploadPrescription(String filePath) async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    const cloudName = 'dkzuhdzg1';
+    const uploadPreset = 'prescriptions';
+    final uri = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
+
+    final request = http.MultipartRequest('POST', uri);
+    request.fields['upload_preset'] = uploadPreset;
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['secure_url'] as String?;
+    } else {
+      throw Exception('Cloudinary upload failed: ${response.body}');
+    }
+  }
+
+  /// Verifies or rejects a medication prescription (Pharmacist only).
+  Future<bool> verifyMedication(String userId, String drugId, String status) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) return false;
+
+      final medications = List<Map<String, dynamic>>.from(userDoc.data()?['medications'] ?? []);
+      final index = medications.indexWhere((m) => m['drugId'] == drugId);
+
+      if (index != -1) {
+        medications[index]['verificationStatus'] = status;
+        await _firestore.collection('users').doc(userId).update({
+          'medications': medications,
+        });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Failed to verify medication: $e');
       return false;
     }
   }
@@ -487,12 +558,27 @@ class AuthService {
     if (user == null) return false;
 
     try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (!doc.exists) return false;
+
+      final data = doc.data()!;
+      final medications = List<Map<String, dynamic>>.from(
+        (data['medications'] ?? []).map((m) => Map<String, dynamic>.from(m as Map)),
+      );
+
+      // Remove the first entry matching drugId and brandName
+      final indexToRemove = medications.indexWhere(
+        (m) => m['drugId'] == drugId && m['brandName'] == brandName,
+      );
+
+      if (indexToRemove == -1) return false;
+
+      medications.removeAt(indexToRemove);
+
       await _firestore.collection('users').doc(user.uid).update({
-        'medications': FieldValue.arrayRemove([{
-          'drugId': drugId,
-          'brandName': brandName,
-        }]),
+        'medications': medications,
       });
+
       return true;
     } catch (e) {
       print('Failed to remove medication: $e');
@@ -550,8 +636,31 @@ class AuthService {
     return null;
   }
 
+  /// Gets the verification status for a specific drug.
+  Future<String?> getUserMedicationStatus(String drugId) async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final medications = doc.data()?['medications'] ?? [];
+        if (medications is List) {
+          for (final med in medications) {
+            if (med is Map && med['drugId'] == drugId) {
+              return med['verificationStatus'] as String?;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Failed to get medication status: $e');
+    }
+    return null;
+  }
+
   /// Gets the current user's medication list as maps.
-  Future<List<Map<String, String>>> getCurrentUserMedications() async {
+  Future<List<Map<String, dynamic>>> getCurrentUserMedications() async {
     final user = _auth.currentUser;
     if (user == null) return [];
 
@@ -562,18 +671,36 @@ class AuthService {
         if (medications is List) {
           return medications.map((med) {
             if (med is Map) {
-              return {
-                'drugId': (med['drugId'] ?? '').toString(),
-                'brandName': (med['brandName'] ?? '').toString(),
-              };
+              return Map<String, dynamic>.from(med);
             }
             // Support old format
-            return {'drugId': med.toString(), 'brandName': ''};
+            return {'drugId': med.toString(), 'brandName': '', 'verificationStatus': 'unverified'};
           }).toList();
         }
       }
     } catch (e) {
       print('Failed to get medications: $e');
+    }
+    return [];
+  }
+
+  /// Gets medications for a specific user (Doctor/Pharmacist view)
+  Future<List<Map<String, dynamic>>> getMedicationsForUser(String userId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (doc.exists) {
+        final medications = doc.data()?['medications'] ?? [];
+        if (medications is List) {
+          return medications.map((med) {
+            if (med is Map) {
+              return Map<String, dynamic>.from(med);
+            }
+            return {'drugId': med.toString(), 'brandName': '', 'verificationStatus': 'unverified'};
+          }).toList();
+        }
+      }
+    } catch (e) {
+      print('Failed to get user medications: $e');
     }
     return [];
   }
@@ -1005,6 +1132,42 @@ class AuthService {
     }
   }
 
+  /// Gets missed medication logs for a specific patient (for doctor view)
+  Future<List<Map<String, dynamic>>> getMissedMedicationsForPatient(String patientId) async {
+    try {
+      final logsSnapshot = await _firestore
+          .collection('users')
+          .doc(patientId)
+          .collection('medication_logs')
+          .get();
+
+      final missed = logsSnapshot.docs
+          .where((doc) => doc.data()['status'] == 'missed')
+          .map((doc) {
+            final d = doc.data();
+            return {
+              'drugId': d['drugId'] ?? '',
+              'brandName': d['brandName'] ?? '',
+              'scheduledTime': d['scheduledTime'] ?? '',
+              'date': d['date'] ?? '',
+            };
+          })
+          .toList();
+
+      // Sort by date descending
+      missed.sort((a, b) {
+        final dateA = DateTime.tryParse(a['scheduledTime'] ?? '') ?? DateTime(2000);
+        final dateB = DateTime.tryParse(b['scheduledTime'] ?? '') ?? DateTime(2000);
+        return dateB.compareTo(dateA);
+      });
+
+      return missed;
+    } catch (e) {
+      print('Failed to get missed medications for patient: $e');
+      return [];
+    }
+  }
+
   // ============ NOTIFICATION METHODS ============
 
   /// Sends a notification to a specific user
@@ -1241,10 +1404,13 @@ class AuthService {
   /// Creates a new prescription
   Future<bool> createPrescription(Prescription prescription) async {
     try {
+      // If created by a doctor, set status to pending
+      // If created by a pharmacist, set status to approved and active
       await _firestore
           .collection('prescriptions')
           .doc(prescription.id)
           .set(prescription.toMap());
+      return true;
       return true;
     } catch (e) {
       print('Failed to create prescription: $e');
@@ -1273,6 +1439,149 @@ class AuthService {
     } catch (e) {
       print('Failed to get prescriptions: $e');
       return [];
+    }
+  }
+
+  /// Gets all prescriptions created by a specific doctor
+  Future<List<Prescription>> getPrescriptionsByDoctor() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      final snapshot = await _firestore
+          .collection('prescriptions')
+          .where('doctorId', isEqualTo: user.uid)
+          .get();
+      
+      final prescriptions = snapshot.docs
+          .map((doc) => Prescription.fromMap(doc.data()))
+          .toList();
+      
+      // Sort by createdAt descending
+      prescriptions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return prescriptions;
+    } catch (e) {
+      print('Failed to get doctor prescriptions: $e');
+      return [];
+    }
+  }
+
+  /// Gets all prescriptions for the current patient
+  Future<List<Prescription>> getPatientPrescriptions() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      final snapshot = await _firestore
+          .collection('prescriptions')
+          .where('patientId', isEqualTo: user.uid)
+          .get();
+      
+      final prescriptions = snapshot.docs
+          .map((doc) => Prescription.fromMap(doc.data()))
+          .toList();
+      
+      prescriptions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return prescriptions;
+    } catch (e) {
+      print('Failed to get patient prescriptions: $e');
+      return [];
+    }
+  }
+
+  /// Gets all pending prescriptions (for pharmacists to review)
+  Future<List<Prescription>> getPendingPrescriptions() async {
+    try {
+      final snapshot = await _firestore
+          .collection('prescriptions')
+          .where('status', isEqualTo: 'pending')
+          .get();
+      
+      final prescriptions = snapshot.docs
+          .map((doc) => Prescription.fromMap(doc.data()))
+          .toList();
+      
+      // Sort by createdAt ascending (oldest first)
+      prescriptions.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      return prescriptions;
+    } catch (e) {
+      print('Failed to get pending prescriptions: $e');
+      return [];
+    }
+  }
+
+  /// Approves a prescription (Pharmacist only)
+  Future<bool> approvePrescription(Prescription prescription) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      // Get pharmacist name
+      final userProfile = await getUserProfile(user.uid);
+      final pharmacistName = userProfile?.fullName ?? 'Pharmacist';
+
+      // 1. Update prescription status
+      await _firestore.collection('prescriptions').doc(prescription.id).update({
+        'status': 'approved',
+        'pharmacistId': user.uid,
+        'pharmacistName': pharmacistName,
+        'isActive': true,
+      });
+
+      // 2. Add each medication to patient's list
+      for (final med in prescription.effectiveMedications) {
+        await _addMedicationToPatient(
+          prescription.patientId,
+          med.drugId,
+          med.brandName,
+          status: 'approved'
+        );
+      }
+
+      // 3. Create a reminder for the patient (Optional, or let patient do it)
+      // For now, we just add it to their list.
+
+      return true;
+    } catch (e) {
+      print('Failed to approve prescription: $e');
+      return false;
+    }
+  }
+
+  /// Rejects a prescription
+  Future<bool> rejectPrescription(String prescriptionId) async {
+    try {
+      await _firestore.collection('prescriptions').doc(prescriptionId).update({
+        'status': 'rejected',
+        'isActive': false,
+      });
+      return true;
+    } catch (e) {
+      print('Failed to reject prescription: $e');
+      return false;
+    }
+  }
+
+  /// Helper to add medication to any patient
+  Future<void> _addMedicationToPatient(
+    String patientId, 
+    String drugId, 
+    String brandName,
+    {String status = 'approved'}
+  ) async {
+    try {
+      final medicationData = {
+        'drugId': drugId,
+        'brandName': brandName,
+        'verificationStatus': status,
+      };
+
+      await _firestore.collection('users').doc(patientId).set({
+        'medications': FieldValue.arrayUnion([medicationData]),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Failed to add medication to patient: $e');
+      throw e;
     }
   }
 

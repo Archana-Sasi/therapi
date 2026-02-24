@@ -193,29 +193,75 @@ class ProfileScreen extends StatelessWidget {
                 title: 'About RespiriCare',
                 iconColor: const Color(0xFF8B5CF6),
                 onTap: () {
-                  showAboutDialog(
+                  showDialog(
                     context: context,
-                    applicationName: 'RespiriCare',
-                    applicationVersion: '1.0.0',
-                    applicationIcon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
+                    builder: (context) => AlertDialog(
+                      title: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.health_and_safety,
+                              size: 40,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    'RespiriCare',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1F2937),
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '1.0.0',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      child: const Icon(
-                        Icons.health_and_safety,
-                        size: 40,
-                        color: Colors.white,
-                      ),
-                    ),
-                    children: [
-                      const Text(
+                      content: const Text(
                         'A pharmacist-integrated Digital Therapeutics app for chronic respiratory disease management.',
+                        style: TextStyle(fontSize: 14),
                       ),
-                    ],
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            showLicensePage(
+                              context: context,
+                              applicationName: 'RespiriCare',
+                              applicationVersion: '1.0.0',
+                              applicationIcon: const Icon(Icons.health_and_safety),
+                            );
+                          },
+                          child: const Text('View licenses'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),

@@ -1,0 +1,173 @@
+﻿
+flutter : Support 
+for Android x86 
+targets will be 
+removed in the next 
+stable release after 
+3.27. See https://git
+hub.com/flutter/flutt
+er/issues/157543 for 
+details.
+At line:1 char:1
++ flutter build apk 
+--debug 2>&1 | 
+Out-File -Encoding 
+utf8 build_report ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (Support   
+  for And...43 fo    
+r details.:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+Running Gradle task 'assembleDebug'...                          
+lib/screens/patient_r
+eport_screen.dart:267
+:41: Error: Property 
+'isNotEmpty' cannot 
+be accessed on 
+'String?' because it 
+is potentially null.
+Try accessing using 
+?. instead.
+            
+_infoRow('Gender', 
+p.gender.isNotEmpty 
+? p.gender : 'N/A'),
+                     
+                   
+^^^^^^^^^^
+lib/screens/patient_r
+eport_screen.dart:267
+:52: Error: The 
+argument type 
+'String?' can't be 
+assigned to the 
+parameter type 
+'String' because 
+'String?' is 
+nullable and 
+'String' isn't.
+            
+_infoRow('Gender', 
+p.gender.isNotEmpty 
+? p.gender : 'N/A'),
+                     
+                     
+         ^
+lib/screens/patient_r
+eport_screen.dart:268
+:46: Error: Property 
+'isNotEmpty' cannot 
+be accessed on 
+'String?' because it 
+is potentially null.
+Try accessing using 
+?. instead.
+            
+_infoRow('OP 
+Number', p.opNumber.i
+sNotEmpty ? 
+p.opNumber : 'N/A'),
+                     
+                     
+   ^^^^^^^^^^
+lib/screens/patient_r
+eport_screen.dart:268
+:57: Error: The 
+argument type 
+'String?' can't be 
+assigned to the 
+parameter type 
+'String' because 
+'String?' is 
+nullable and 
+'String' isn't.
+            
+_infoRow('OP 
+Number', p.opNumber.i
+sNotEmpty ? 
+p.opNumber : 'N/A'),
+                     
+                     
+              ^
+lib/screens/patient_r
+eport_screen.dart:269
+:45: Error: Property 
+'isNotEmpty' cannot 
+be accessed on 
+'String?' because it 
+is potentially null.
+Try accessing using 
+?. instead.
+            
+_infoRow('Phone', p.p
+honeNumber.isNotEmpty
+ ? p.phoneNumber : 
+'N/A'),
+                     
+                     
+  ^^^^^^^^^^
+lib/screens/patient_r
+eport_screen.dart:269
+:56: Error: The 
+argument type 
+'String?' can't be 
+assigned to the 
+parameter type 
+'String' because 
+'String?' is 
+nullable and 
+'String' isn't.
+            
+_infoRow('Phone', p.p
+honeNumber.isNotEmpty
+ ? p.phoneNumber : 
+'N/A'),
+                     
+                     
+             ^
+Target kernel_snapsho
+t_program failed: 
+Exception
+
+
+FAILURE: Build 
+failed with an 
+exception.
+
+* What went wrong:
+Execution failed for 
+task ':app:compileFlu
+tterBuildDebug'.
+> Process 'command 'C
+:\Users\archa\archana
+\flutter\bin\flutter.
+bat'' finished with 
+non-zero exit value 1
+
+* Try:
+> Run with 
+--stacktrace option 
+to get the stack 
+trace.
+> Run with --info or 
+--debug option to 
+get more log output.
+> Run with --scan to 
+get full insights.
+> Get more help at ht
+tps://help.gradle.org
+.
+
+BUILD FAILED in 37s
+Running Gradle task 'assembleDebug'...                             38.4s
+Gradle task 
+assembleDebug failed 
+with exit code 1

@@ -23,6 +23,9 @@ import 'reports_screen.dart';
 import 'send_notification_screen.dart';
 import 'settings_screen.dart';
 import 'symptom_history_screen.dart';
+import 'symptom_history_screen.dart';
+import 'drug_verification_screen.dart';
+import 'pending_prescriptions_screen.dart';
 
 class PharmacistHomeScreen extends StatefulWidget {
   const PharmacistHomeScreen({super.key});
@@ -369,6 +372,19 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                   },
                 ),
                 _buildActionCard(
+                  icon: Icons.pending_actions,
+                  title: 'Pending Rx',
+                  color: Colors.orange,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PendingPrescriptionsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildActionCard(
                   icon: Icons.inventory_2_outlined,
                   title: 'Drug Inventory',
                   color: const Color(0xFF2196F3), // Vibrant Blue
@@ -389,6 +405,19 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const PrescriptionsScreen()),
+                    );
+                  },
+                ),
+                _buildActionCard(
+                  icon: Icons.verified_user_outlined,
+                  title: 'Verify Rx',
+                  color: const Color(0xFFFF9100), // Orange
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DrugVerificationScreen(),
+                      ),
                     );
                   },
                 ),

@@ -1,0 +1,28 @@
+﻿Analyzing patient_list_screen.dart, patient_detail_screen.dart, doctor_home_screen.dart...
+
+warning - lib\screens\doctor_home_screen.dart:4:8 - Unused import: '../providers/theme_provider.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\doctor_home_screen.dart:7:8 - Unused import: '../models/user_model.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\doctor_home_screen.dart:9:8 - Unused import: 'login_screen.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\doctor_home_screen.dart:11:8 - Unused import: 'conversations_screen.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\doctor_home_screen.dart:25:9 - The value of the field '_authService' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\screens\doctor_home_screen.dart:66:33 - The receiver can't be 'null' because of short-circuiting, so the null-aware operator '?.' can't be used. Try replacing the operator '?.' with '.'. - invalid_null_aware_operator
+           - The operator '?.' is causing the short circuiting at lib\screens\doctor_home_screen.dart:66:23.
+warning - lib\screens\doctor_home_screen.dart:66:70 - The '!' will have no effect because the receiver can't be null. Try removing the '!' operator. - unnecessary_non_null_assertion
+warning - lib\screens\patient_detail_screen.dart:5:8 - Unused import: '../models/drug_model.dart'. Try removing the import directive. - unused_import
+warning - lib\screens\patient_detail_screen.dart:42:48 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\screens\patient_detail_screen.dart:61:52 - The receiver can't be null, so the null-aware operator '?.' is unnecessary. Try replacing the operator '?.' with '.'. - invalid_null_aware_operator
+warning - lib\screens\patient_detail_screen.dart:62:58 - The '!' will have no effect because the receiver can't be null. Try removing the '!' operator. - unnecessary_non_null_assertion
+warning - lib\screens\patient_detail_screen.dart:70:48 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\screens\patient_detail_screen.dart:74:45 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\screens\patient_detail_screen.dart:119:33 - The value of the local variable 'category' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\screens\patient_list_screen.dart:53:32 - The receiver can't be null, so the null-aware operator '?.' is unnecessary. Try replacing the operator '?.' with '.'. - invalid_null_aware_operator
+warning - lib\screens\patient_list_screen.dart:54:30 - The receiver can't be null, so the null-aware operator '?.' is unnecessary. Try replacing the operator '?.' with '.'. - invalid_null_aware_operator
+warning - lib\screens\patient_list_screen.dart:107:55 - The receiver can't be null, so the null-aware operator '?.' is unnecessary. Try replacing the operator '?.' with '.'. - invalid_null_aware_operator
+warning - lib\screens\patient_list_screen.dart:108:61 - The '!' will have no effect because the receiver can't be null. Try removing the '!' operator. - unnecessary_non_null_assertion
+warning - lib\screens\patient_list_screen.dart:114:61 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+warning - lib\screens\patient_list_screen.dart:115:61 - The left operand can't be null, so the right operand is never executed. Try removing the operator and the right operand. - dead_null_aware_expression
+   info - lib\screens\doctor_home_screen.dart:106:57 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\screens\doctor_home_screen.dart:249:32 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\screens\patient_detail_screen.dart:128:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+23 issues found.

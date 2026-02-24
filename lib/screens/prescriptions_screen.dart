@@ -323,7 +323,7 @@ class _PrescriptionCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${prescription.genericName} (${prescription.brandName})',
+                    _getMedicationTitle(prescription),
                     style: const TextStyle(fontWeight: FontWeight.w500),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -333,26 +333,13 @@ class _PrescriptionCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             
-            // Dosage
+            // Medication count
             Row(
               children: [
-                Icon(Icons.schedule, size: 18, color: Colors.grey[600]),
+                Icon(Icons.list, size: 18, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Text(
-                  prescription.dosage,
-                  style: TextStyle(color: Colors.grey[700]),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            
-            // Duration
-            Row(
-              children: [
-                Icon(Icons.timelapse, size: 18, color: Colors.grey[600]),
-                const SizedBox(width: 8),
-                Text(
-                  'Duration: ${prescription.duration}',
+                  '${prescription.effectiveMedications.length} medication${prescription.effectiveMedications.length == 1 ? '' : 's'}',
                   style: TextStyle(color: Colors.grey[700]),
                 ),
               ],
@@ -404,5 +391,12 @@ class _PrescriptionCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _getMedicationTitle(Prescription prescription) {
+    final meds = prescription.effectiveMedications;
+    if (meds.isEmpty) return 'No medications';
+    if (meds.length == 1) return meds.first.genericName;
+    return '${meds.first.genericName} & ${meds.length - 1} more';
   }
 }
