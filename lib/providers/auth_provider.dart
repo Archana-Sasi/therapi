@@ -63,6 +63,7 @@ class AuthProvider extends ChangeNotifier {
     String role = 'patient',
     int? age,
     String? gender,
+    String? opNumber,
   }) async {
     _setLoading(true);
     try {
@@ -73,6 +74,7 @@ class AuthProvider extends ChangeNotifier {
         role: role,
         age: age,
         gender: gender,
+        opNumber: opNumber,
       );
     } finally {
       _setLoading(false);

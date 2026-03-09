@@ -1,0 +1,86 @@
+﻿
+flutter : Support for 
+Android x86 targets 
+will be removed in the 
+next stable release 
+after 3.27. See https:/
+/github.com/flutter/flu
+tter/issues/157543 for 
+details.
+At line:1 char:1
++ flutter build apk 
+--debug 2>&1 | 
+Out-File -Encoding 
+utf8 build_phase3 ...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (Support for A   
+ nd...43 for detail    
+s.:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+Running Gradle task 'assembleDebug'...                          
+lib/services/auth_servi
+ce.dart:910:68: Error: 
+Type 'SymptomLog' not 
+found.
+  Future<void> notifyPh
+armacistsOfSevereSympto
+ms(String patientId, 
+SymptomLog log) async {
+                       
+                       
+                     
+^^^^^^^^^^
+lib/services/auth_servi
+ce.dart:910:68: Error: 
+'SymptomLog' isn't a 
+type.
+  Future<void> notifyPh
+armacistsOfSevereSympto
+ms(String patientId, 
+SymptomLog log) async {
+                       
+                       
+                     
+^^^^^^^^^^
+Target kernel_snapshot_
+program failed: 
+Exception
+
+
+FAILURE: Build failed 
+with an exception.
+
+* What went wrong:
+Execution failed for 
+task ':app:compileFlutt
+erBuildDebug'.
+> Process 'command 'C:\
+Users\archa\archana\flu
+tter\bin\flutter.bat'' 
+finished with non-zero 
+exit value 1
+
+* Try:
+> Run with 
+--stacktrace option to 
+get the stack trace.
+> Run with --info or 
+--debug option to get 
+more log output.
+> Run with --scan to 
+get full insights.
+> Get more help at http
+s://help.gradle.org.
+
+BUILD FAILED in 33s
+Running Gradle task 'assembleDebug'...                             34.3s
+Gradle task 
+assembleDebug failed 
+with exit code 1

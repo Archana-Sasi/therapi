@@ -5,6 +5,7 @@ import '../services/video_consultation_service.dart';
 import '../data/drug_data.dart';
 import 'create_prescription_screen.dart';
 import 'patient_report_screen.dart';
+import 'consultations_screen.dart';
 
 /// Shows patient info for doctors with quick actions.
 /// Detailed data (prescriptions, adherence, symptoms, consultations)
@@ -133,9 +134,14 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                             Expanded(
                               child: _ActionButton(
                                 icon: Icons.video_call,
-                                label: 'Start Consultation',
+                                label: 'Consultations',
                                 color: Colors.green,
-                                onTap: _startConsultation,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const ConsultationsScreen()),
+                                  );
+                                },
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -148,8 +154,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) =>
-                                          const CreatePrescriptionScreen(),
+                                      builder: (_) => CreatePrescriptionScreen(
+                                        initialPatient: widget.patient,
+                                      ),
                                     ),
                                   );
                                 },
@@ -342,19 +349,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _startConsultation() async {
-    final roomName = 'therap_app_${widget.patient.id}';
-    try {
-      await _videoService.launchMeeting(roomName);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch video call')),
-        );
-      }
-    }
   }
 }
 

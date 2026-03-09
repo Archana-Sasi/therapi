@@ -1,0 +1,3 @@
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|C:\\MAD\\Therap_app\\lib\\widgets\\animated_widgets.dart|174|33|2|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\MAD\\Therap_app\\lib\\widgets\\animated_widgets.dart|174|33|2|Expected to find ':'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\MAD\\Therap_app\\lib\\widgets\\animated_widgets.dart|175|13|1|Expected to find ')'.

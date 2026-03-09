@@ -29,21 +29,31 @@ class PrescriptionSheetScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Digital Prescription'),
+        title: const Text('Digital Prescription', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(height: 1, color: Colors.black12),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 700),
+      body: InteractiveViewer(
+        panEnabled: true,
+        scaleEnabled: true,
+        minScale: 0.5,
+        maxScale: 4.0,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.topCenter,
+              child: Container(
+                width: 650, // Fixed A4-like width
+
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border.all(color: Colors.black, width: 1.5),
@@ -144,58 +154,58 @@ class PrescriptionSheetScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Table(
-                    border: TableBorder.all(color: Colors.black, width: 0.8),
-                    columnWidths: const {
-                      0: FixedColumnWidth(36),   // S.No
-                      1: FlexColumnWidth(2.5),   // Drug Name
-                      2: FlexColumnWidth(1),     // Dosage
-                      3: FlexColumnWidth(1),     // Duration
-                      4: FixedColumnWidth(58),   // Morning
-                      5: FixedColumnWidth(58),   // Afternoon
-                      6: FixedColumnWidth(58),   // Evening
-                      7: FixedColumnWidth(58),   // Night
-                      8: FlexColumnWidth(1),     // Food
-                    },
-                    children: [
-                      // Header row
-                      TableRow(
-                        decoration: const BoxDecoration(color: Color(0xFFF0F0F0)),
-                        children: const [
-                          _TCell(text: '#', bold: true),
-                          _TCell(text: 'Drug Name', bold: true, alignLeft: true),
-                          _TCell(text: 'Dosage', bold: true),
-                          _TCell(text: 'Duration', bold: true),
-                          _TCell(text: 'Morn', bold: true),
-                          _TCell(text: 'Aft', bold: true),
-                          _TCell(text: 'Eve', bold: true),
-                          _TCell(text: 'Night', bold: true),
-                          _TCell(text: 'Food', bold: true),
+                        border: TableBorder.all(color: Colors.black, width: 0.8),
+                        columnWidths: const {
+                          0: FixedColumnWidth(30),   // S.No
+                          1: FlexColumnWidth(2.5),   // Drug Name
+                          2: FlexColumnWidth(1),     // Dosage
+                          3: FlexColumnWidth(1),     // Duration
+                          4: FixedColumnWidth(45),   // Morning
+                          5: FixedColumnWidth(45),   // Afternoon
+                          6: FixedColumnWidth(45),   // Evening
+                          7: FixedColumnWidth(45),   // Night
+                          8: FlexColumnWidth(1),     // Food
+                        },
+                        children: [
+                          // Header row
+                          TableRow(
+                            decoration: const BoxDecoration(color: Color(0xFFF0F0F0)),
+                            children: const [
+                              _TCell(text: '#', bold: true),
+                              _TCell(text: 'Drug Name', bold: true, alignLeft: true),
+                              _TCell(text: 'Dosage', bold: true),
+                              _TCell(text: 'Dur', bold: true),
+                              _TCell(text: 'Morn', bold: true),
+                              _TCell(text: 'Aft', bold: true),
+                              _TCell(text: 'Eve', bold: true),
+                              _TCell(text: 'Night', bold: true),
+                              _TCell(text: 'Food', bold: true),
+                            ],
+                          ),
+                          // Data rows
+                          ...meds.asMap().entries.map((entry) {
+                            final i = entry.key;
+                            final med = entry.value;
+                            final drugLabel = med.brandName.isNotEmpty
+                                ? '${med.genericName}\n(${med.brandName})'
+                                : med.genericName;
+
+                            return TableRow(
+                              children: [
+                                _TCell(text: '${i + 1}'),
+                                _TCell(text: drugLabel, alignLeft: true),
+                                _TCell(text: med.dosage),
+                                _TCell(text: med.duration),
+                                _TCell(text: _tabletText(med.morning), highlight: med.morning > 0),
+                                _TCell(text: _tabletText(med.afternoon), highlight: med.afternoon > 0),
+                                _TCell(text: _tabletText(med.evening), highlight: med.evening > 0),
+                                _TCell(text: _tabletText(med.night), highlight: med.night > 0),
+                                _TCell(text: med.beforeFood ? 'Before' : 'After'),
+                              ],
+                            );
+                          }),
                         ],
                       ),
-                      // Data rows
-                      ...meds.asMap().entries.map((entry) {
-                        final i = entry.key;
-                        final med = entry.value;
-                        final drugLabel = med.brandName.isNotEmpty
-                            ? '${med.genericName}\n(${med.brandName})'
-                            : med.genericName;
-
-                        return TableRow(
-                          children: [
-                            _TCell(text: '${i + 1}'),
-                            _TCell(text: drugLabel, alignLeft: true),
-                            _TCell(text: med.dosage),
-                            _TCell(text: med.duration),
-                            _TCell(text: _tabletText(med.morning), highlight: med.morning > 0),
-                            _TCell(text: _tabletText(med.afternoon), highlight: med.afternoon > 0),
-                            _TCell(text: _tabletText(med.evening), highlight: med.evening > 0),
-                            _TCell(text: _tabletText(med.night), highlight: med.night > 0),
-                            _TCell(text: med.beforeFood ? 'Before' : 'After'),
-                          ],
-                        );
-                      }),
-                    ],
-                  ),
                 ),
 
                 // ── Instructions (if any) ──
@@ -290,7 +300,9 @@ class PrescriptionSheetScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   // ── Small helper cells for the header/value table ──

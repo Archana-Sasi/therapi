@@ -180,7 +180,7 @@ class _RequestConsultationScreenState extends State<RequestConsultationScreen> {
                                     ),
                                   ),
                                   Text(
-                                    'Schedule a video call with a pharmacist',
+                                    'Request a video consultation',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 13,

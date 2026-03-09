@@ -233,19 +233,21 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 const SizedBox(height: 16),
 
                 // OP Number field (for patients)
-                TextFormField(
-                  controller: _opNumberController,
-                  decoration: InputDecoration(
-                    labelText: 'OP Number (optional)',
-                    hintText: 'Outpatient registration number',
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                if (_selectedRole == 'patient') ...[
+                  TextFormField(
+                    controller: _opNumberController,
+                    decoration: InputDecoration(
+                      labelText: 'OP Number (optional)',
+                      hintText: 'Outpatient registration number',
+                      prefixIcon: const Icon(Icons.badge_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
+                    textCapitalization: TextCapitalization.characters,
                   ),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
 
                 // Role Dropdown
                 DropdownButtonFormField<String>(

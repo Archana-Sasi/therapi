@@ -13,7 +13,9 @@ import 'prescription_sheet_screen.dart';
 
 /// Screen for creating a new prescription with multiple medications
 class CreatePrescriptionScreen extends StatefulWidget {
-  const CreatePrescriptionScreen({super.key});
+  final UserModel? initialPatient;
+
+  const CreatePrescriptionScreen({super.key, this.initialPatient});
 
   @override
   State<CreatePrescriptionScreen> createState() => _CreatePrescriptionScreenState();
@@ -41,6 +43,7 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
   @override
   void initState() {
     super.initState();
+    _addMedication(); // Add an empty row immediately so doctors can start typing
     _loadData();
   }
 
@@ -62,6 +65,15 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
       setState(() {
         _patients = patients;
         _allDrugs = allDrugs;
+
+        if (widget.initialPatient != null) {
+          try {
+            _selectedPatient = _patients.firstWhere((p) => p.id == widget.initialPatient!.id);
+          } catch (e) {
+            // Patient not found in list, ignore
+          }
+        }
+
         _isLoading = false;
       });
     }
@@ -246,7 +258,9 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                                 child: Text(patient.fullName.isNotEmpty ? patient.fullName : patient.email),
                               );
                             }).toList(),
-                            onChanged: (value) => setState(() => _selectedPatient = value),
+                            onChanged: widget.initialPatient != null 
+                                ? null // Disable if patient is pre-selected
+                                : (value) => setState(() => _selectedPatient = value),
                             validator: (value) => value == null ? 'Please select a patient' : null,
                           ),
 

@@ -112,7 +112,21 @@ class _PatientListScreenState extends State<PatientListScreen> {
                                   : null,
                             ),
                             title: Text(patient.fullName.isEmpty ? 'Unknown' : patient.fullName),
-                            subtitle: Text(patient.email),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(patient.email),
+                                if (patient.opNumber != null && patient.opNumber!.isNotEmpty)
+                                  Text(
+                                    'OP #${patient.opNumber}',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
+                            ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
                               Navigator.push(

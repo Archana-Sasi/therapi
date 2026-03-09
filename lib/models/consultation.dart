@@ -21,6 +21,9 @@ class Consultation {
     this.status = ConsultationStatus.pending,
     this.notes = '',
     this.meetingLink,
+    this.escalatedToDoctor = false,
+    this.doctorId,
+    this.doctorReply,
     this.createdAt,
     this.updatedAt,
   });
@@ -35,6 +38,9 @@ class Consultation {
   final ConsultationStatus status;
   final String notes;
   final String? meetingLink;
+  final bool escalatedToDoctor;
+  final String? doctorId;
+  final String? doctorReply;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -50,6 +56,9 @@ class Consultation {
       'status': status.name,
       'notes': notes,
       'meetingLink': meetingLink,
+      'escalatedToDoctor': escalatedToDoctor,
+      'doctorId': doctorId,
+      'doctorReply': doctorReply,
       'createdAt': createdAt != null 
           ? Timestamp.fromDate(createdAt!) 
           : FieldValue.serverTimestamp(),
@@ -74,6 +83,9 @@ class Consultation {
       ),
       notes: map['notes'] ?? '',
       meetingLink: map['meetingLink'],
+      escalatedToDoctor: map['escalatedToDoctor'] ?? false,
+      doctorId: map['doctorId'],
+      doctorReply: map['doctorReply'],
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
@@ -94,6 +106,9 @@ class Consultation {
     ConsultationStatus? status,
     String? notes,
     String? meetingLink,
+    bool? escalatedToDoctor,
+    String? doctorId,
+    String? doctorReply,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -108,6 +123,9 @@ class Consultation {
       status: status ?? this.status,
       notes: notes ?? this.notes,
       meetingLink: meetingLink ?? this.meetingLink,
+      escalatedToDoctor: escalatedToDoctor ?? this.escalatedToDoctor,
+      doctorId: doctorId ?? this.doctorId,
+      doctorReply: doctorReply ?? this.doctorReply,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

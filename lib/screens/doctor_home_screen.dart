@@ -11,6 +11,8 @@ import 'create_prescription_screen.dart';
 import 'conversations_screen.dart';
 import 'profile_screen.dart';
 import 'patient_list_screen.dart';
+import 'consultations_screen.dart';
+import 'prescriptions_screen.dart';
 
 class DoctorHomeScreen extends StatefulWidget {
   const DoctorHomeScreen({super.key});
@@ -179,21 +181,14 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                 ),
                 _buildActionCard(
                   context,
-                  icon: Icons.video_call,
-                  title: 'Start Consultation',
+                  icon: Icons.assignment_turned_in,
+                  title: 'Consultations',
                   color: Colors.green,
-                  onTap: () async {
-                    // Use a unique room name based on doctor's ID or name
-                    final roomName = 'therap_app_${user?.id ?? "consultation"}';
-                    try {
-                      await _videoService.launchMeeting(roomName);
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Could not launch video call')),
-                        );
-                      }
-                    }
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ConsultationsScreen()),
+                    );
                   },
                 ),
                 _buildActionCard(
@@ -215,6 +210,18 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const PatientListScreen()),
+                    );
+                  },
+                ),
+                _buildActionCard(
+                  context,
+                  icon: Icons.receipt_long,
+                  title: 'My Prescriptions',
+                  color: Colors.indigo,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PrescriptionsScreen()),
                     );
                   },
                 ),

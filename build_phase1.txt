@@ -1,0 +1,28 @@
+﻿
+flutter : Support for 
+Android x86 targets 
+will be removed in the 
+next stable release 
+after 3.27. See https:/
+/github.com/flutter/flu
+tter/issues/157543 for 
+details.
+At line:1 char:1
++ flutter build apk 
+--debug 2>&1 | 
+Out-File -Encoding 
+utf8 build_phase1 ...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (Support for A   
+ nd...43 for detail    
+s.:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+Running Gradle task 'assembleDebug'...                             53.8s
+ΓêÜ Built build\app\outputs\flutter-apk\app-debug.apk

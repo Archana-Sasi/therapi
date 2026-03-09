@@ -1,0 +1,7 @@
+Analyzing widgets...
+
+  error - animated_widgets.dart:174:33 - Expected an identifier. - missing_identifier
+  error - animated_widgets.dart:174:33 - Expected to find ':'. - expected_token
+  error - animated_widgets.dart:175:13 - Expected to find ')'. - expected_token
+
+3 issues found.

@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>RespiriCare - Comprehensive BPMN Diagram</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+        }
+
+        #save-btn {
+            margin: 12px 0;
+            padding: 10px 28px;
+            background: #4a90d9;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        #save-btn:hover {
+            background: #357abd;
+        }
+    </style>
+</head>
+
+<body>
+    <svg viewBox="0 0 1350 870" width="1350" height="870" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <style>
+                svg {
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                }
+
+                .task {
+                    fill: #e8f4fd;
+                    stroke: #4a90d9;
+                    stroke-width: 1.4;
+                }
+
+                .task-green {
+                    fill: #e8f8e8;
+                    stroke: #4a9f5a;
+                    stroke-width: 1.4;
+                }
+
+                .task-purple {
+                    fill: #f3e8fd;
+                    stroke: #8a4ad9;
+                    stroke-width: 1.4;
+                }
+
+                .txt {
+                    font-size: 9px;
+                    fill: #222;
+                    text-anchor: middle;
+                }
+
+                .txt-sm {
+                    font-size: 8px;
+                    fill: #222;
+                    text-anchor: middle;
+                }
+
+                .evt {
+                    fill: #fff;
+                    stroke: #333;
+                    stroke-width: 1.5;
+                }
+
+                .evt-end {
+                    fill: #fff;
+                    stroke: #333;
+                    stroke-width: 3;
+                }
+
+                .evt-msg {
+                    fill: #fff;
+                    stroke: #333;
+                    stroke-width: 1.5;
+                }
+
+                .evt-inner {
+                    fill: #fff;
+                    stroke: #333;
+                    stroke-width: 1;
+                }
+
+                .gw {
+                    fill: #fff;
+                    stroke: #d4a017;
+                    stroke-width: 1.8;
+                }
+
+                .gw-x {
+                    stroke: #d4a017;
+                    stroke-width: 1.8;
+                    fill: none;
+                }
+
+                .gw-p {
+                    stroke: #333;
+                    stroke-width: 1.5;
+                    fill: none;
+                }
+
+                .lbl {
+                    font-size: 8px;
+                    fill: #555;
+                    text-anchor: middle;
+                }
+
+                .cond {
+                    font-size: 8px;
+                    fill: #d4a017;
+                    font-weight: 600;
+                }
+
+                .arrow {
+                    stroke: #333;
+                    stroke-width: 1.1;
+                    fill: none;
+                }
+
+                .dash {
+                    stroke: #333;
+                    stroke-width: 1;
+                    stroke-dasharray: 5, 3;
+                    fill: none;
+                }
+
+                .dash-lbl {
+                    font-size: 7.5px;
+                    fill: #666;
+                    text-anchor: middle;
+                }
+
+                .lane {
+                    fill: #fafafa;
+                    stroke: #aaa;
+                    stroke-width: 0.8;
+                }
+
+                .lane-hdr {
+                    fill: #f0f0f0;
+                    stroke: #aaa;
+                    stroke-width: 0.8;
+                }
+
+                .lane-txt {
+                    font-size: 10px;
+                    font-weight: 600;
+                    fill: #333;
+                    text-anchor: middle;
+                }
+
+                .env {
+                    fill: none;
+                    stroke: #333;
+                    stroke-width: 0.8;
+                }
+
+                .section-lbl {
+                    font-size: 7.5px;
+                    fill: #888;
+                    text-anchor: start;
+                    font-style: italic;
+                }
+            </style>
+            <marker id="ah" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                <polygon points="0 0,7 2.5,0 5" fill="#333" />
+            </marker>
+            <marker id="ah-o" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                <polygon points="0 0,7 2.5,0 5" fill="none" stroke="#333" stroke-width="0.6" />
+            </marker>
+        </defs>
+
+        <!-- ===================== LANE 1: PATIENT ===================== -->
+        <rect x="0" y="0" width="1350" height="290" class="lane" />
+        <rect x="0" y="0" width="38" height="290" class="lane-hdr" />
+        <text x="19" y="145" class="lane-txt" transform="rotate(-90,19,145)">
+            <tspan x="19" dy="-5">Patient Process</tspan>
+            <tspan x="19" dy="14">(OPD Management)</tspan>
+        </text>
+
+        <!-- Section label -->
+        <text x="55" y="15" class="section-lbl">Registration &amp; Navigation</text>
+
+        <!-- Start Event -->
+        <circle cx="65" cy="60" r="13" class="evt" />
+        <text x="65" y="85" class="lbl">App started</text>
+
+        <!-- Arrow -->
+        <line x1="78" y1="60" x2="100" y2="60" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Login/Register -->
+        <rect x="100" y="37" width="115" height="46" rx="7" class="task" />
+        <text x="157" y="57" class="txt">Login/Register</text>
+        <text x="157" y="68" class="txt">&amp; Complete Profile</text>
+
+        <!-- Arrow -->
+        <line x1="215" y1="60" x2="237" y2="60" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Home Dashboard -->
+        <rect x="237" y="37" width="100" height="46" rx="7" class="task" />
+        <text x="287" y="57" class="txt">Home</text>
+        <text x="287" y="68" class="txt">Dashboard</text>
+
+        <!-- Arrow to Parallel Gateway -->
+        <line x1="337" y1="60" x2="358" y2="60" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Parallel Gateway (+) -->
+        <polygon points="375,35 400,60 375,85 350,60" class="gw" style="stroke:#333" />
+        <line x1="365" y1="60" x2="385" y2="60" class="gw-p" />
+        <line x1="375" y1="50" x2="375" y2="70" class="gw-p" />
+
+        <!-- ===== PATH 1 (TOP): Medication Management ===== -->
+        <text x="425" y="15" class="section-lbl">Medication Management</text>
+
+        <!-- Arrow: Gateway up to Path 1 -->
+        <line x1="400" y1="60" x2="410" y2="60" class="arrow" />
+        <line x1="410" y1="60" x2="410" y2="35" class="arrow" />
+        <line x1="410" y1="35" x2="428" y2="35" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Browse Drug Directory -->
+        <rect x="428" y="12" width="108" height="46" rx="7" class="task" />
+        <text x="482" y="32" class="txt">Browse Drug</text>
+        <text x="482" y="43" class="txt">Directory</text>
+
+        <line x1="536" y1="35" x2="555" y2="35" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Add to My Medications -->
+        <rect x="555" y="12" width="115" height="46" rx="7" class="task" />
+        <text x="612" y="32" class="txt">Add to My</text>
+        <text x="612" y="43" class="txt">Medications</text>
+
+        <line x1="670" y1="35" x2="690" y2="35" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Set Reminders -->
+        <rect x="690" y="12" width="100" height="46" rx="7" class="task" />
+        <text x="740" y="32" class="txt">Set Medication</text>
+        <text x="740" y="43" class="txt">Reminders</text>
+
+        <line x1="790" y1="35" x2="810" y2="35" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Track Medications -->
+        <rect x="810" y="12" width="130" height="46" rx="7" class="task" />
+        <text x="875" y="28" class="txt">Track Medications</text>
+        <text x="875" y="39" class="txt">(Taken / Pending /</text>
+        <text x="875" y="50" class="txt">Missed)</text>
+
+        <line x1="940" y1="35" x2="960" y2="35" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Intermediate event: Missed alert -->
+        <circle cx="974" cy="35" r="13" class="evt-msg" />
+        <circle cx="974" cy="35" r="10" class="evt-inner" />
+        <text x="974" y="58" class="lbl">Missed med</text>
+        <text x="974" y="67" class="lbl">alert sent</text>
+
+        <line x1="987" y1="35" x2="1010" y2="35" class="arrow" marker-end="url(#ah)" />
+        <circle cx="1024" cy="35" r="13" class="evt-end" />
+        <text x="1024" y="58" class="lbl">Process</text>
+        <text x="1024" y="67" class="lbl">completed</text>
+
+        <!-- ===== PATH 2 (MIDDLE): Consultation ===== -->
+        <text x="425" y="82" class="section-lbl">Video Consultation &amp; Prescriptions</text>
+
+        <!-- Arrow: Gateway right to Path 2 -->
+        <line x1="400" y1="60" x2="410" y2="60" class="arrow" />
+        <line x1="410" y1="60" x2="410" y2="105" class="arrow" />
+        <line x1="410" y1="105" x2="428" y2="105" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Request Video Consultation -->
+        <rect x="428" y="82" width="130" height="46" rx="7" class="task" />
+        <text x="493" y="102" class="txt">Request Video</text>
+        <text x="493" y="113" class="txt">Consultation</text>
+
+        <line x1="558" y1="105" x2="578" y2="105" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Intermediate msg event: Consultation requested -->
+        <circle cx="592" cy="105" r="13" class="evt-msg" />
+        <circle cx="592" cy="105" r="10" class="evt-inner" />
+        <rect x="585" y="101" width="14" height="9" class="env" />
+        <polyline points="585,101 592,106 599,101" class="env" />
+        <text x="592" y="130" class="lbl">Consultation</text>
+        <text x="592" y="139" class="lbl">requested</text>
+
+        <!-- Arrow -->
+        <line x1="605" y1="105" x2="670" y2="105" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Intermediate msg event: Prescription received -->
+        <circle cx="684" cy="105" r="13" class="evt-msg" />
+        <circle cx="684" cy="105" r="10" class="evt-inner" />
+        <rect x="677" y="101" width="14" height="9" class="env" />
+        <polyline points="677,101 684,106 691,101" class="env" />
+        <text x="684" y="130" class="lbl">Prescription</text>
+        <text x="684" y="139" class="lbl">received</text>
+
+        <line x1="697" y1="105" x2="720" y2="105" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: View Prescriptions -->
+        <rect x="720" y="82" width="110" height="46" rx="7" class="task" />
+        <text x="775" y="102" class="txt">View</text>
+        <text x="775" y="113" class="txt">Prescriptions</text>
+
+        <line x1="830" y1="105" x2="850" y2="105" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Continue medication -->
+        <rect x="850" y="82" width="130" height="46" rx="7" class="task" />
+        <text x="915" y="102" class="txt">Continue Medication</text>
+        <text x="915" y="113" class="txt">with Reminders</text>
+
+        <line x1="980" y1="105" x2="1010" y2="105" class="arrow" marker-end="url(#ah)" />
+        <circle cx="1024" cy="105" r="13" class="evt-end" />
+
+        <!-- ===== PATH 3 (BOTTOM): Symptoms, Chat & Help ===== -->
+        <text x="425" y="157" class="section-lbl">Symptom Logging, Chat &amp; Support</text>
+
+        <!-- Arrow: Gateway down to Path 3 -->
+        <line x1="400" y1="60" x2="410" y2="60" class="arrow" />
+        <line x1="410" y1="60" x2="410" y2="180" class="arrow" />
+        <line x1="410" y1="180" x2="428" y2="180" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Log Symptoms -->
+        <rect x="428" y="157" width="100" height="46" rx="7" class="task" />
+        <text x="478" y="177" class="txt">Log</text>
+        <text x="478" y="188" class="txt">Symptoms</text>
+
+        <line x1="528" y1="180" x2="548" y2="180" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Symptom History -->
+        <rect x="548" y="157" width="100" height="46" rx="7" class="task" />
+        <text x="598" y="177" class="txt">Symptom</text>
+        <text x="598" y="188" class="txt">History</text>
+
+        <line x1="648" y1="180" x2="678" y2="180" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Chat with Pharmacist -->
+        <rect x="678" y="157" width="110" height="46" rx="7" class="task" />
+        <text x="733" y="177" class="txt">Chat with</text>
+        <text x="733" y="188" class="txt">Pharmacist</text>
+
+        <line x1="788" y1="180" x2="808" y2="180" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Help Center -->
+        <rect x="808" y="157" width="100" height="46" rx="7" class="task" />
+        <text x="858" y="177" class="txt">Help Center</text>
+        <text x="858" y="188" class="txt">(WhatsApp)</text>
+
+        <line x1="908" y1="180" x2="928" y2="180" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: View Notifications -->
+        <rect x="928" y="157" width="100" height="46" rx="7" class="task" />
+        <text x="978" y="177" class="txt">View</text>
+        <text x="978" y="188" class="txt">Notifications</text>
+
+        <line x1="1028" y1="180" x2="1050" y2="180" class="arrow" marker-end="url(#ah)" />
+        <circle cx="1064" cy="180" r="13" class="evt-end" />
+
+        <!-- Row 3: Additional patient features -->
+        <text x="55" y="227" class="section-lbl">Medication Actions</text>
+
+        <!-- Sub-flow: Overdue/Pending actions -->
+        <circle cx="65" cy="250" r="10" class="evt" style="stroke-dasharray:3,2" />
+        <text x="65" y="270" class="lbl">Timer</text>
+
+        <line x1="75" y1="250" x2="100" y2="250" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="100" y="228" width="120" height="44" rx="7" class="task" style="fill:#fff3e0; stroke:#f57c00" />
+        <text x="160" y="247" class="txt">Overdue</text>
+        <text x="160" y="258" class="txt">Medications</text>
+
+        <line x1="220" y1="250" x2="245" y2="250" class="arrow" marker-end="url(#ah)" />
+
+        <!-- XOR: Take or Miss? -->
+        <polygon points="262,228 282,250 262,272 242,250" class="gw" />
+        <line x1="253" y1="241" x2="271" y2="259" class="gw-x" />
+        <line x1="271" y1="241" x2="253" y2="259" class="gw-x" />
+
+        <line x1="282" y1="250" x2="290" y2="250" class="arrow" />
+        <line x1="290" y1="250" x2="290" y2="232" class="arrow" />
+        <line x1="290" y1="232" x2="310" y2="232" class="arrow" marker-end="url(#ah)" />
+        <text x="295" y="228" class="cond">Take</text>
+
+        <rect x="310" y="212" width="80" height="40" rx="7" class="task" style="fill:#e8f5e9;stroke:#4caf50" />
+        <text x="350" y="235" class="txt">Mark Taken</text>
+
+        <line x1="282" y1="250" x2="290" y2="250" class="arrow" />
+        <line x1="290" y1="250" x2="290" y2="268" class="arrow" />
+        <line x1="290" y1="268" x2="310" y2="268" class="arrow" marker-end="url(#ah)" />
+        <text x="295" y="280" class="cond">Miss</text>
+
+        <rect x="310" y="248" width="80" height="40" rx="7" class="task" style="fill:#ffebee;stroke:#ef5350" />
+        <text x="350" y="265" class="txt">Mark Missed</text>
+        <text x="350" y="275" class="txt">(Alert Pharmacist)</text>
+
+        <line x1="390" y1="232" x2="420" y2="232" class="arrow" />
+        <line x1="390" y1="268" x2="420" y2="268" class="arrow" />
+        <line x1="420" y1="232" x2="420" y2="268" class="arrow" />
+        <line x1="420" y1="250" x2="445" y2="250" class="arrow" marker-end="url(#ah)" />
+        <circle cx="459" cy="250" r="13" class="evt-end" />
+        <text x="459" y="275" class="lbl">Updated</text>
+
+
+        <!-- ===================== LANE 2: DOCTOR ===================== -->
+        <rect x="0" y="290" width="1350" height="230" class="lane" />
+        <rect x="0" y="290" width="38" height="230" class="lane-hdr" />
+        <line x1="0" y1="290" x2="1350" y2="290" stroke="#999" stroke-width="1" />
+        <text x="19" y="405" class="lane-txt" transform="rotate(-90,19,405)">
+            <tspan x="19" dy="-5">Doctor Process</tspan>
+            <tspan x="19" dy="14">(Consultation)</tspan>
+        </text>
+
+        <!-- Row 1: Consultation Process -->
+        <text x="55" y="305" class="section-lbl">Consultation &amp; Prescription Process</text>
+
+        <!-- Message Start: Consultation request -->
+        <circle cx="65" cy="345" r="13" class="evt-msg" />
+        <rect x="58" y="341" width="14" height="9" class="env" />
+        <polyline points="58,341 65,346 72,341" class="env" />
+        <text x="65" y="370" class="lbl">Consultation</text>
+        <text x="65" y="379" class="lbl">request received</text>
+
+        <line x1="78" y1="345" x2="100" y2="345" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Review Patient Data -->
+        <rect x="100" y="322" width="120" height="46" rx="7" class="task-green" />
+        <text x="160" y="342" class="txt">Review Patient</text>
+        <text x="160" y="353" class="txt">Data &amp; History</text>
+
+        <line x1="220" y1="345" x2="240" y2="345" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Conduct Video Consultation -->
+        <rect x="240" y="322" width="130" height="46" rx="7" class="task-green" />
+        <text x="305" y="342" class="txt">Conduct Video</text>
+        <text x="305" y="353" class="txt">Consultation</text>
+
+        <line x1="370" y1="345" x2="390" y2="345" class="arrow" marker-end="url(#ah)" />
+
+        <!-- XOR Gateway: Prescription required? -->
+        <polygon points="407,320 430,345 407,370 384,345" class="gw" />
+        <line x1="398" y1="336" x2="416" y2="354" class="gw-x" />
+        <line x1="416" y1="336" x2="398" y2="354" class="gw-x" />
+        <text x="407" y="388" class="cond">Prescription</text>
+        <text x="407" y="397" class="cond">required?</text>
+
+        <!-- No branch -->
+        <line x1="430" y1="345" x2="440" y2="345" class="arrow" />
+        <line x1="440" y1="345" x2="440" y2="318" class="arrow" />
+        <line x1="440" y1="318" x2="460" y2="318" class="arrow" marker-end="url(#ah)" />
+        <text x="450" y="312" class="cond">No</text>
+
+        <rect x="460" y="296" width="115" height="44" rx="7" class="task-green" />
+        <text x="517" y="315" class="txt">Provide Medical</text>
+        <text x="517" y="326" class="txt">Advice</text>
+
+        <line x1="575" y1="318" x2="600" y2="318" class="arrow" marker-end="url(#ah)" />
+        <circle cx="614" cy="318" r="13" class="evt-end" />
+        <text x="614" y="343" class="lbl">Consultation</text>
+        <text x="614" y="352" class="lbl">ended</text>
+
+        <!-- Yes branch -->
+        <line x1="430" y1="345" x2="440" y2="345" class="arrow" />
+        <line x1="440" y1="345" x2="440" y2="375" class="arrow" />
+        <line x1="440" y1="375" x2="460" y2="375" class="arrow" marker-end="url(#ah)" />
+        <text x="450" y="390" class="cond">Yes</text>
+
+        <rect x="460" y="353" width="115" height="44" rx="7" class="task-green" />
+        <text x="517" y="372" class="txt">Write</text>
+        <text x="517" y="383" class="txt">Prescription</text>
+
+        <line x1="575" y1="375" x2="600" y2="375" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Msg event: Prescription sent -->
+        <circle cx="614" cy="375" r="13" class="evt-msg" />
+        <circle cx="614" cy="375" r="10" class="evt-inner" />
+        <rect x="607" y="371" width="14" height="9" class="env" />
+        <polyline points="607,371 614,376 621,371" class="env" />
+        <text x="614" y="400" class="lbl">Prescription</text>
+        <text x="614" y="409" class="lbl">sent</text>
+
+        <!-- Row 2: Other Doctor Features -->
+        <text x="55" y="430" class="section-lbl">Additional Features</text>
+
+        <rect x="100" y="440" width="100" height="42" rx="7" class="task-green" />
+        <text x="150" y="458" class="txt">View My</text>
+        <text x="150" y="468" class="txt">Patients</text>
+
+        <line x1="200" y1="461" x2="220" y2="461" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="220" y="440" width="105" height="42" rx="7" class="task-green" />
+        <text x="272" y="458" class="txt">Patient</text>
+        <text x="272" y="468" class="txt">Reports</text>
+
+        <line x1="325" y1="461" x2="348" y2="461" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="348" y="440" width="100" height="42" rx="7" class="task-green" />
+        <text x="398" y="458" class="txt">Drug</text>
+        <text x="398" y="468" class="txt">Directory</text>
+
+        <line x1="448" y1="461" x2="470" y2="461" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="470" y="440" width="110" height="42" rx="7" class="task-green" />
+        <text x="525" y="458" class="txt">Escalated</text>
+        <text x="525" y="468" class="txt">Consults</text>
+
+        <line x1="580" y1="461" x2="602" y2="461" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="602" y="440" width="110" height="42" rx="7" class="task-green" />
+        <text x="657" y="458" class="txt">My</text>
+        <text x="657" y="468" class="txt">Prescriptions</text>
+
+        <line x1="712" y1="461" x2="735" y2="461" class="arrow" marker-end="url(#ah)" />
+        <circle cx="749" cy="461" r="13" class="evt-end" />
+
+
+        <!-- ===================== LANE 3: PHARMACIST ===================== -->
+        <rect x="0" y="520" width="1350" height="350" class="lane" />
+        <rect x="0" y="520" width="38" height="350" class="lane-hdr" />
+        <line x1="0" y1="520" x2="1350" y2="520" stroke="#999" stroke-width="1" />
+        <text x="19" y="695" class="lane-txt" transform="rotate(-90,19,695)">
+            <tspan x="19" dy="-5">Pharmacist Process</tspan>
+            <tspan x="19" dy="14">(Admin / Verification)</tspan>
+        </text>
+
+        <!-- Row 1: Prescription Verification -->
+        <text x="55" y="535" class="section-lbl">Prescription Verification Process</text>
+
+        <!-- Message Start: Rx received -->
+        <circle cx="65" cy="575" r="13" class="evt-msg" />
+        <rect x="58" y="571" width="14" height="9" class="env" />
+        <polyline points="58,571 65,576 72,571" class="env" />
+        <text x="65" y="600" class="lbl">Prescription</text>
+        <text x="65" y="609" class="lbl">received</text>
+
+        <line x1="78" y1="575" x2="100" y2="575" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Review Prescription -->
+        <rect x="100" y="553" width="115" height="44" rx="7" class="task-purple" />
+        <text x="157" y="572" class="txt">Review</text>
+        <text x="157" y="583" class="txt">Prescription</text>
+
+        <line x1="215" y1="575" x2="235" y2="575" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Task: Verify Rx -->
+        <rect x="235" y="553" width="105" height="44" rx="7" class="task-purple" />
+        <text x="287" y="572" class="txt">Verify &amp;</text>
+        <text x="287" y="583" class="txt">Approve Rx</text>
+
+        <line x1="340" y1="575" x2="355" y2="575" class="arrow" marker-end="url(#ah)" />
+
+        <!-- XOR: Approved? -->
+        <polygon points="372,552 395,575 372,598 349,575" class="gw" />
+        <line x1="363" y1="566" x2="381" y2="584" class="gw-x" />
+        <line x1="381" y1="566" x2="363" y2="584" class="gw-x" />
+        <text x="372" y="615" class="cond">Approved?</text>
+
+        <!-- Yes -->
+        <line x1="395" y1="575" x2="405" y2="575" class="arrow" />
+        <line x1="405" y1="575" x2="405" y2="555" class="arrow" />
+        <line x1="405" y1="555" x2="425" y2="555" class="arrow" marker-end="url(#ah)" />
+        <text x="413" y="548" class="cond">Yes</text>
+
+        <rect x="425" y="533" width="115" height="44" rx="7" class="task-purple" />
+        <text x="482" y="552" class="txt">Approve &amp;</text>
+        <text x="482" y="563" class="txt">Notify Patient</text>
+
+        <line x1="540" y1="555" x2="558" y2="555" class="arrow" marker-end="url(#ah)" />
+
+        <!-- Msg event: Verified Rx -->
+        <circle cx="572" cy="555" r="13" class="evt-msg" />
+        <circle cx="572" cy="555" r="10" class="evt-inner" />
+        <rect x="565" y="551" width="14" height="9" class="env" />
+        <polyline points="565,551 572,556 579,551" class="env" />
+        <text x="572" y="580" class="lbl">Verified Rx</text>
+        <text x="572" y="589" class="lbl">sent to patient</text>
+
+        <line x1="585" y1="555" x2="608" y2="555" class="arrow" marker-end="url(#ah)" />
+        <circle cx="622" cy="555" r="13" class="evt-end" />
+        <text x="622" y="580" class="lbl">Verification</text>
+        <text x="622" y="589" class="lbl">completed</text>
+
+        <!-- No -->
+        <line x1="395" y1="575" x2="405" y2="575" class="arrow" />
+        <line x1="405" y1="575" x2="405" y2="600" class="arrow" />
+        <line x1="405" y1="600" x2="425" y2="600" class="arrow" marker-end="url(#ah)" />
+        <text x="413" y="613" class="cond">No</text>
+
+        <rect x="425" y="578" width="115" height="44" rx="7" class="task-purple" />
+        <text x="482" y="597" class="txt">Request</text>
+        <text x="482" y="608" class="txt">Revision</text>
+
+        <line x1="540" y1="600" x2="558" y2="600" class="arrow" marker-end="url(#ah)" />
+        <circle cx="572" cy="600" r="13" class="evt-end" />
+
+        <!-- Row 2: Monitoring & Alerts -->
+        <text x="55" y="640" class="section-lbl">Monitoring &amp; Alerts Process</text>
+
+        <!-- Start: Alert trigger -->
+        <circle cx="65" cy="675" r="13" class="evt-msg" />
+        <rect x="58" y="671" width="14" height="9" class="env" />
+        <polyline points="58,671 65,676 72,671" class="env" />
+        <text x="65" y="700" class="lbl">Missed med</text>
+        <text x="65" y="709" class="lbl">alert received</text>
+
+        <line x1="78" y1="675" x2="100" y2="675" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="100" y="653" width="120" height="44" rx="7" class="task-purple" />
+        <text x="160" y="672" class="txt">Monitor Missed</text>
+        <text x="160" y="683" class="txt">Medications</text>
+
+        <line x1="220" y1="675" x2="240" y2="675" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="240" y="653" width="110" height="44" rx="7" class="task-purple" />
+        <text x="295" y="672" class="txt">Send Alert</text>
+        <text x="295" y="683" class="txt">to Patient</text>
+
+        <line x1="350" y1="675" x2="370" y2="675" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="370" y="653" width="110" height="44" rx="7" class="task-purple" />
+        <text x="425" y="672" class="txt">Chat with</text>
+        <text x="425" y="683" class="txt">Patient</text>
+
+        <line x1="480" y1="675" x2="500" y2="675" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="500" y="653" width="110" height="44" rx="7" class="task-purple" />
+        <text x="555" y="672" class="txt">Provide</text>
+        <text x="555" y="683" class="txt">Guidance</text>
+
+        <line x1="610" y1="675" x2="635" y2="675" class="arrow" marker-end="url(#ah)" />
+        <circle cx="649" cy="675" r="13" class="evt-end" />
+        <text x="649" y="700" class="lbl">Issue</text>
+        <text x="649" y="709" class="lbl">resolved</text>
+
+        <!-- Row 3: Admin & Reports -->
+        <text x="55" y="735" class="section-lbl">Administration &amp; Reports</text>
+
+        <rect x="100" y="748" width="105" height="42" rx="7" class="task-purple" />
+        <text x="152" y="766" class="txt">Manage</text>
+        <text x="152" y="776" class="txt">Users</text>
+
+        <line x1="205" y1="769" x2="225" y2="769" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="225" y="748" width="110" height="42" rx="7" class="task-purple" />
+        <text x="280" y="766" class="txt">Generate</text>
+        <text x="280" y="776" class="txt">Reports</text>
+
+        <line x1="335" y1="769" x2="355" y2="769" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="355" y="748" width="100" height="42" rx="7" class="task-purple" />
+        <text x="405" y="766" class="txt">Export</text>
+        <text x="405" y="776" class="txt">Data</text>
+
+        <line x1="455" y1="769" x2="478" y2="769" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="478" y="748" width="110" height="42" rx="7" class="task-purple" />
+        <text x="533" y="766" class="txt">Drug</text>
+        <text x="533" y="776" class="txt">Inventory</text>
+
+        <line x1="588" y1="769" x2="608" y2="769" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="608" y="748" width="110" height="42" rx="7" class="task-purple" />
+        <text x="663" y="766" class="txt">Pending</text>
+        <text x="663" y="776" class="txt">Prescriptions</text>
+
+        <line x1="718" y1="769" x2="738" y2="769" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="738" y="748" width="115" height="42" rx="7" class="task-purple" />
+        <text x="795" y="766" class="txt">Send</text>
+        <text x="795" y="776" class="txt">Notifications</text>
+
+        <line x1="853" y1="769" x2="873" y2="769" class="arrow" marker-end="url(#ah)" />
+
+        <rect x="873" y="748" width="100" height="42" rx="7" class="task-purple" />
+        <text x="923" y="766" class="txt">Drug</text>
+        <text x="923" y="776" class="txt">Verification</text>
+
+        <line x1="973" y1="769" x2="998" y2="769" class="arrow" marker-end="url(#ah)" />
+        <circle cx="1012" cy="769" r="13" class="evt-end" />
+
+        <!-- ===================== MESSAGE FLOWS ===================== -->
+
+        <!-- 1. Patient "Request Consultation" → Doctor -->
+        <line x1="493" y1="128" x2="493" y2="290" class="dash" />
+        <line x1="493" y1="290" x2="160" y2="290" class="dash" />
+        <line x1="160" y1="290" x2="160" y2="322" class="dash" marker-end="url(#ah-o)" />
+        <text x="340" y="286" class="dash-lbl">Request consultation</text>
+
+        <!-- 2. Doctor "Prescription" → Pharmacist -->
+        <line x1="614" y1="388" x2="614" y2="520" class="dash" />
+        <line x1="614" y1="520" x2="157" y2="520" class="dash" />
+        <line x1="157" y1="520" x2="157" y2="553" class="dash" marker-end="url(#ah-o)" />
+        <text x="400" y="516" class="dash-lbl">Generate prescription</text>
+
+        <!-- 3. Pharmacist "Verified Rx" → Patient -->
+        <line x1="572" y1="542" x2="572" y2="520" class="dash" />
+        <line x1="572" y1="520" x2="1080" y2="520" class="dash" />
+        <line x1="1080" y1="520" x2="1080" y2="290" class="dash" />
+        <line x1="1080" y1="290" x2="684" y2="290" class="dash" />
+        <line x1="684" y1="290" x2="684" y2="118" class="dash" marker-end="url(#ah-o)" />
+        <text x="1080" y="408" class="dash-lbl" transform="rotate(-90,1080,408)">Verified prescription</text>
+
+        <!-- 4. Patient "Missed Med Alert" → Pharmacist -->
+        <line x1="974" y1="48" x2="974" y2="290" class="dash" />
+        <line x1="974" y1="290" x2="1100" y2="290" class="dash" />
+        <line x1="1100" y1="290" x2="1100" y2="520" class="dash" />
+        <line x1="1100" y1="520" x2="65" y2="520" class="dash" />
+        <line x1="65" y1="520" x2="65" y2="662" class="dash" marker-end="url(#ah-o)" />
+        <text x="1100" y="408" class="dash-lbl" transform="rotate(-90,1100,408)">Missed medication alert</text>
+
+        <!-- 5. Patient "Chat" ↔ Pharmacist "Chat" -->
+        <line x1="733" y1="203" x2="733" y2="290" class="dash" />
+        <line x1="733" y1="290" x2="1120" y2="290" class="dash" />
+        <line x1="1120" y1="290" x2="1120" y2="520" class="dash" />
+        <line x1="1120" y1="520" x2="425" y2="520" class="dash" />
+        <line x1="425" y1="520" x2="425" y2="653" class="dash" marker-end="url(#ah-o)" />
+        <text x="1120" y="408" class="dash-lbl" transform="rotate(-90,1120,408)">Chat messages</text>
+
+        <!-- Outer border -->
+        <rect x="0" y="0" width="1350" height="870" fill="none" stroke="#888" stroke-width="1.2" />
+
+        <!-- Title -->
+        <text x="675" y="860" text-anchor="middle" font-size="11" fill="#666" font-weight="600">RespiriCare —
+            Comprehensive BPMN Collaboration Diagram</text>
+
+    </svg>
+
+    <button id="save-btn" onclick="savePNG()">💾 Save as PNG Image</button>
+
+    <script>
+        function savePNG() {
+            const svg = document.querySelector('svg');
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const canvas = document.createElement('canvas');
+            const scale = 2;
+            canvas.width = 1350 * scale;
+            canvas.height = 870 * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const img = new Image();
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            img.onload = function () {
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
+                const pngUrl = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.download = 'RespiriCare_BPMN_Diagram.png';
+                a.href = pngUrl;
+                a.click();
+            };
+            img.src = url;
+        }
+    </script>
+</body>
+
+</html>

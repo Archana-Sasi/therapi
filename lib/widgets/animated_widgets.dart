@@ -82,14 +82,14 @@ class _AnimatedButtonState extends State<AnimatedButton>
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
-            color: widget.isEnabled ? bgColor : bgColor.withOpacity(0.5),
+            color: widget.isEnabled ? bgColor : bgColor.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(
               widget.borderRadius ?? AppConstants.borderRadiusMedium,
             ),
             boxShadow: widget.isEnabled && !widget.isLoading
                 ? [
                     BoxShadow(
-                      color: bgColor.withOpacity(0.3),
+                      color: bgColor.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -171,7 +171,7 @@ class _AnimatedCardState extends State<AnimatedCard> {
         duration: AppConstants.shortAnimation,
         margin: widget.margin ?? const EdgeInsets.only(bottom: 12),
         transform: _isPressed 
-            ? Matrix4.identity()..scale(0.98)
+            ? (Matrix4.identity()..scale(0.98))
             : Matrix4.identity(),
         child: Card(
           elevation: _isPressed ? 1 : 2,

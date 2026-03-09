@@ -9,7 +9,7 @@ class VideoConsultationService {
     
     try {
       if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+        await launchUrl(url, mode: LaunchMode.inAppBrowserView);
       } else {
         throw 'Could not launch $url';
       }

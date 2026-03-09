@@ -23,6 +23,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _ageController = TextEditingController();
   final _accessCodeController = TextEditingController();
+  final _opNumberController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureAccessCode = true;
   String _selectedRole = 'patient';
@@ -47,6 +48,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _passwordController.dispose();
     _ageController.dispose();
     _accessCodeController.dispose();
+    _opNumberController.dispose();
     super.dispose();
   }
 
@@ -101,6 +103,7 @@ class _SignupScreenState extends State<SignupScreen> {
         role: _selectedRole,
         age: age,
         gender: _selectedGender,
+        opNumber: _opNumberController.text.trim().isNotEmpty ? _opNumberController.text.trim() : null,
       );
       if (!mounted) return;
       _navigateByRole(_selectedRole);
@@ -346,6 +349,23 @@ class _SignupScreenState extends State<SignupScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // OP Number field - only visible for patients
+                if (_selectedRole == 'patient') ...[
+                  TextFormField(
+                    controller: _opNumberController,
+                    decoration: InputDecoration(
+                      labelText: 'OP Number (optional)',
+                      hintText: 'Outpatient registration number',
+                      prefixIcon: const Icon(Icons.badge_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Role Dropdown
                 DropdownButtonFormField<String>(

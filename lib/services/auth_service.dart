@@ -14,6 +14,7 @@ import '../models/medication_reminder.dart';
 import '../models/prescription_model.dart';
 import '../models/user_model.dart';
 import '../models/user_notification.dart';
+import '../models/symptom_log.dart';
 
 /// Firebase Authentication service for login, signup, Google sign-in, phone OTP, and password reset.
 class AuthService {
@@ -50,6 +51,7 @@ class AuthService {
     String role = 'patient',
     int? age,
     String? gender,
+    String? opNumber,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -64,6 +66,7 @@ class AuthService {
       role: role,
       age: age,
       gender: gender,
+      opNumber: opNumber,
     );
     
     // Try to save to Firestore, but don't fail if unavailable
@@ -906,6 +909,40 @@ class AuthService {
     }
   }
 
+  /// Notifies all pharmacists when a patient logs severe symptoms (level 4 or 5)
+  Future<void> notifyPharmacistsOfSevereSymptoms(String patientId, SymptomLog log) async {
+    try {
+      // Get patient name
+      final patientProfile = await getUserProfile(patientId);
+      final patientName = patientProfile?.fullName ?? 'A patient';
+
+      // Get all pharmacists
+      final pharmacists = await getPharmacists();
+
+      // Send notification to each pharmacist
+      for (final pharmacist in pharmacists) {
+        final notificationId = '${patientId}_symptom_${DateTime.now().millisecondsSinceEpoch}';
+        final notification = UserNotification(
+          id: notificationId,
+          title: '🚨 Severe Symptom Alert',
+          message: '$patientName logged severe health symptoms. Please review their report.',
+          senderId: patientId,
+          senderName: patientName,
+          recipientId: pharmacist.id,
+          createdAt: DateTime.now(),
+          type: NotificationType.alert,
+        );
+
+        await _firestore
+            .collection('notifications')
+            .doc(notificationId)
+            .set(notification.toMap());
+      }
+    } catch (e) {
+      print('Failed to notify pharmacists of severe symptoms: $e');
+    }
+  }
+
   String _formatTimeSimple(DateTime time) {
     final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
     final minute = time.minute.toString().padLeft(2, '0');
@@ -1411,7 +1448,6 @@ class AuthService {
           .doc(prescription.id)
           .set(prescription.toMap());
       return true;
-      return true;
     } catch (e) {
       print('Failed to create prescription: $e');
       return false;
@@ -1475,6 +1511,7 @@ class AuthService {
       final snapshot = await _firestore
           .collection('prescriptions')
           .where('patientId', isEqualTo: user.uid)
+          .where('isActive', isEqualTo: true) // Only show approved/active ones
           .get();
       
       final prescriptions = snapshot.docs
@@ -1867,15 +1904,23 @@ class AuthService {
       final userProfile = await getUserProfile(user.uid);
       final role = userProfile?.role ?? 'patient';
 
-      final fieldName = role == 'patient' ? 'patientId' : 'pharmacistId';
+      Query query = _firestore.collection('consultations');
       
-      final snapshot = await _firestore
-          .collection('consultations')
-          .where(fieldName, isEqualTo: user.uid)
-          .get();
+      if (role == 'patient') {
+        query = query.where('patientId', isEqualTo: user.uid);
+      } else if (role == 'pharmacist') {
+        query = query.where('pharmacistId', isEqualTo: user.uid);
+      } else if (role == 'doctor') {
+        query = query.where(Filter.or(
+          Filter('escalatedToDoctor', isEqualTo: true),
+          Filter('doctorId', isEqualTo: user.uid),
+        ));
+      }
+
+      final snapshot = await query.get();
 
       final consultations = snapshot.docs
-          .map((doc) => Consultation.fromMap(doc.data()))
+          .map((doc) => Consultation.fromMap(doc.data() as Map<String, dynamic>))
           .toList();
 
       // Sort by requestedDate descending
@@ -1911,6 +1956,118 @@ class AuthService {
       return true;
     } catch (e) {
       print('Failed to update consultation: $e');
+      return false;
+    }
+  }
+
+  /// Escalates a consultation to a doctor
+  Future<bool> escalateConsultation(String consultationId) async {
+    try {
+      await _firestore.collection('consultations').doc(consultationId).update({
+        'escalatedToDoctor': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Notify all doctors about the escalation
+      final allUsers = await getAllUsers();
+      final doctors = allUsers.where((u) => u.role == 'doctor').toList();
+      
+      // Get consultation details for the notification
+      final consultDoc = await _firestore.collection('consultations').doc(consultationId).get();
+      final patientName = consultDoc.data()?['patientName'] ?? 'A patient';
+
+      for (final doctor in doctors) {
+        await sendNotification(
+          recipientId: doctor.id,
+          title: '📋 Consultation Escalated',
+          message: 'A consultation for $patientName needs your attention. Please reply with your availability.',
+          type: NotificationType.alert,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      print('Failed to escalate consultation: $e');
+      return false;
+    }
+  }
+
+  /// Doctor replies with their availability
+  Future<bool> doctorReplyToConsultation(String consultationId, String reply, String doctorId) async {
+    try {
+      await _firestore.collection('consultations').doc(consultationId).update({
+        'doctorReply': reply,
+        'doctorId': doctorId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Get consultation to find pharmacist
+      final consultDoc = await _firestore.collection('consultations').doc(consultationId).get();
+      final pharmacistId = consultDoc.data()?['pharmacistId'] ?? '';
+      final patientName = consultDoc.data()?['patientName'] ?? 'A patient';
+
+      // Get doctor name
+      final doctorProfile = await getUserProfile(doctorId);
+      final doctorName = doctorProfile?.fullName ?? 'Doctor';
+
+      // Notify the pharmacist
+      if (pharmacistId.isNotEmpty) {
+        await sendNotification(
+          recipientId: pharmacistId,
+          title: '🩺 Doctor Replied',
+          message: 'Dr. $doctorName replied for $patientName\'s consultation: "$reply". Please confirm with a meeting link.',
+          type: NotificationType.alert,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      print('Failed to reply to consultation: $e');
+      return false;
+    }
+  }
+
+  /// Pharmacist confirms consultation with link and notifies both patient and doctor
+  Future<bool> confirmConsultationWithLink(String consultationId, String meetingLink) async {
+    try {
+      await _firestore.collection('consultations').doc(consultationId).update({
+        'status': ConsultationStatus.confirmed.name,
+        'meetingLink': meetingLink,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Get consultation details
+      final consultDoc = await _firestore.collection('consultations').doc(consultationId).get();
+      final data = consultDoc.data();
+      if (data == null) return true;
+
+      final patientId = data['patientId'] ?? '';
+      final doctorId = data['doctorId'] ?? '';
+      final requestedTime = data['requestedTime'] ?? '';
+
+      // Notify patient
+      if (patientId.isNotEmpty) {
+        await sendNotification(
+          recipientId: patientId,
+          title: '✅ Consultation Confirmed',
+          message: 'Your video consultation has been confirmed for $requestedTime. Join from the Consultations screen.',
+          type: NotificationType.alert,
+        );
+      }
+
+      // Notify doctor
+      if (doctorId.isNotEmpty) {
+        await sendNotification(
+          recipientId: doctorId,
+          title: '✅ Consultation Confirmed',
+          message: 'The consultation with ${data['patientName']} has been confirmed for $requestedTime. Join from the Consultations screen.',
+          type: NotificationType.alert,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      print('Failed to confirm consultation with link: $e');
       return false;
     }
   }

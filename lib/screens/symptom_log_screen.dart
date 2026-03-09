@@ -64,6 +64,17 @@ class _SymptomLogScreenState extends State<SymptomLogScreen> {
           .doc(logId)
           .set(symptomLog.toMap());
 
+      // Check if any symptom is Severe (4) or Very Severe (5)
+      bool hasSevereSymptom = _breathlessness >= 4 || 
+                              _cough >= 4 || 
+                              _wheezing >= 4 || 
+                              _chestTightness >= 4 || 
+                              _fatigue >= 4;
+      
+      if (hasSevereSymptom) {
+        await _authService.notifyPharmacistsOfSevereSymptoms(user.uid, symptomLog);
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
