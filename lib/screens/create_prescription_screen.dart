@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/curated_medicine_data.dart';
 import '../data/drug_data.dart';
 import '../models/custom_drug.dart';
 import '../models/drug_model.dart';
@@ -35,6 +36,30 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
   // List of medication entries being added
   final List<_MedicationEntry> _medicationEntries = [];
 
+  // Clinical consultation-note fields
+  final _complaintsController = TextEditingController();
+  final _examinationController = TextEditingController();
+  final List<String> _diagnoses = [];
+  final _diagnosisController = TextEditingController();
+  String _selectedDepartment = 'Respiratory Medicine';
+  String _selectedVisitType = 'Outpatient';
+  final _visitIdController = TextEditingController();
+  
+  final _adviceController = TextEditingController();
+  final _notesController = TextEditingController();
+
+  final List<String> _departmentOptions = [
+    'Respiratory Medicine',
+    
+  ];
+
+  final List<String> _visitTypeOptions = [
+    'Outpatient',
+    'Inpatient',
+    'Emergency',
+    'Teleconsultation',
+  ];
+
   final List<String> _durationOptions = [
     '3 days', '5 days', '7 days', '10 days', '14 days',
     '21 days', '30 days', '60 days', '90 days', 'Ongoing',
@@ -54,10 +79,12 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     final patients = allUsers.where((u) => u.role == 'patient').toList();
 
     final customDrugs = await _authService.getCustomDrugs();
-    final allDrugs = [...DrugData.drugs, ...customDrugs];
+    final curatedMedicines = CuratedMedicineData.medicines;
+
+    final allDrugs = [...DrugData.drugs, ...curatedMedicines, ...customDrugs];
     allDrugs.sort((a, b) {
-      final nameA = a is DrugModel ? a.genericName : (a as CustomDrug).genericName;
-      final nameB = b is DrugModel ? b.genericName : (b as CustomDrug).genericName;
+      final nameA = _getDrugGenericNameSafe(a);
+      final nameB = _getDrugGenericNameSafe(b);
       return nameA.compareTo(nameB);
     });
 
@@ -79,22 +106,39 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     }
   }
 
-  String _getDrugGenericName(dynamic drug) {
+  String _getDrugGenericNameSafe(dynamic drug) {
     if (drug is DrugModel) return drug.genericName;
     if (drug is CustomDrug) return drug.genericName;
+    if (drug is CuratedMedicine) return drug.genericName;
     return '';
+  }
+
+  String _getDrugGenericName(dynamic drug) {
+    return _getDrugGenericNameSafe(drug);
   }
 
   List<String> _getDrugBrandNames(dynamic drug) {
     if (drug is DrugModel) return drug.brandNames;
     if (drug is CustomDrug) return drug.brandNames;
+    if (drug is CuratedMedicine) return [drug.brandName];
     return [];
   }
 
   String _getDrugId(dynamic drug) {
     if (drug is DrugModel) return drug.id;
     if (drug is CustomDrug) return drug.id;
+    if (drug is CuratedMedicine) return drug.id;
     return '';
+  }
+
+  void _addDiagnosis() {
+    final text = _diagnosisController.text.trim();
+    if (text.isNotEmpty) {
+      setState(() {
+        _diagnoses.add(text);
+        _diagnosisController.clear();
+      });
+    }
   }
 
   void _addMedication() {
@@ -102,6 +146,7 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
       _medicationEntries.add(_MedicationEntry(
         dosageController: TextEditingController(),
         instructionsController: TextEditingController(),
+        drugSearchController: TextEditingController(),
       ));
     });
   }
@@ -110,6 +155,7 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     setState(() {
       _medicationEntries[index].dosageController.dispose();
       _medicationEntries[index].instructionsController.dispose();
+      _medicationEntries[index].drugSearchController.dispose();
       _medicationEntries.removeAt(index);
     });
   }
@@ -179,6 +225,17 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
       status: isDoctor ? 'pending' : 'approved',
       isActive: !isDoctor,
       medications: medications,
+      complaints: _complaintsController.text.trim(),
+      examination: _examinationController.text.trim(),
+      diagnoses: List<String>.from(_diagnoses),
+      department: _selectedDepartment,
+      patientAge: _selectedPatient!.age,
+      patientGender: _selectedPatient!.gender,
+      patientOpNumber: _selectedPatient!.opNumber,
+      visitType: _selectedVisitType,
+      visitId: _visitIdController.text.trim().isNotEmpty ? _visitIdController.text.trim() : null,
+      advice: _adviceController.text.trim(),
+      followUpNotes: _notesController.text.trim(),
     );
 
     final success = await _authService.createPrescription(prescription);
@@ -211,6 +268,12 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
 
   @override
   void dispose() {
+    _complaintsController.dispose();
+    _examinationController.dispose();
+    _diagnosisController.dispose();
+    _visitIdController.dispose();
+    _adviceController.dispose();
+    _notesController.dispose();
     for (final entry in _medicationEntries) {
       entry.dosageController.dispose();
       entry.instructionsController.dispose();
@@ -265,6 +328,178 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                           ),
 
                           const SizedBox(height: 24),
+
+                          // ── Consultation Note Fields ──
+                          const Text(
+                            'Consultation Note',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Optional — adds clinical details to the printed prescription',
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Department
+                          const Text('Department', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _selectedDepartment,
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                    isDense: true,
+                                  ),
+                                  items: _departmentOptions.map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
+                                  isExpanded: true,
+                                  onChanged: (v) => setState(() => _selectedDepartment = v ?? 'Respiratory Medicine'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _selectedVisitType,
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                    isDense: true,
+                                  ),
+                                  items: _visitTypeOptions.map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
+                                  isExpanded: true,
+                                  onChanged: (v) => setState(() => _selectedVisitType = v ?? 'Outpatient'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Visit ID
+                          const Text('Visit ID', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _visitIdController,
+                            decoration: InputDecoration(
+                              hintText: 'e.g., V-12345',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                              isDense: true,
+                            ),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Presenting Complaints
+                          const Text('Presenting Complaints', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _complaintsController,
+                            decoration: InputDecoration(
+                              hintText: 'e.g., Breathlessness, chronic cough...',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                              isDense: true,
+                            ),
+                            style: const TextStyle(fontSize: 14),
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Systemic Examination
+                          const Text('Systemic Examination', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _examinationController,
+                            decoration: InputDecoration(
+                              hintText: 'e.g., Diminished breath sounds...',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                              isDense: true,
+                            ),
+                            style: const TextStyle(fontSize: 14),
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Diagnosis
+                          const Text('Diagnosis', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _diagnosisController,
+                                  decoration: InputDecoration(
+                                    hintText: 'e.g., J44.9 COPD',
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                    contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                    isDense: true,
+                                  ),
+                                  style: const TextStyle(fontSize: 14),
+                                  onSubmitted: (_) => _addDiagnosis(),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: _addDiagnosis,
+                                icon: const Icon(Icons.add_circle, color: AppColors.primary),
+                              ),
+                            ],
+                          ),
+                          if (_diagnoses.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: _diagnoses.asMap().entries.map((e) {
+                                return Chip(
+                                  label: Text(e.value, style: const TextStyle(fontSize: 12)),
+                                  deleteIcon: const Icon(Icons.close, size: 16),
+                                  onDeleted: () => setState(() => _diagnoses.removeAt(e.key)),
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                );
+                              }).toList(),
+                            ),
+                          ],
+
+                          const SizedBox(height: 16),
+                          
+                          // Advice & Follow Up
+                          const Text('Advice & Follow up', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          const SizedBox(height: 12),
+                          const Text('Notes', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _notesController,
+                            decoration: InputDecoration(
+                              hintText: 'e.g., S/B DR KABINTHRA',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                              isDense: true,
+                            ),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text('Advice', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _adviceController,
+                            decoration: InputDecoration(
+                              hintText: 'e.g., REVIEW AFTER 15 DAYS',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                              isDense: true,
+                            ),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+
+                          const SizedBox(height: 24),
+                          const Divider(),
+                          const SizedBox(height: 16),
 
                           // Medications Header
                           Row(
@@ -376,11 +611,14 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  entry.selectedDrug != null
-                      ? _getDrugGenericName(entry.selectedDrug)
-                      : 'Medication ${index + 1}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                Flexible(
+                  child: Text(
+                    entry.selectedDrug != null
+                        ? _getDrugGenericName(entry.selectedDrug)
+                        : 'Medication ${index + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -397,72 +635,103 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
             // Drug Search
             const Text('Drug *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
             const SizedBox(height: 6),
-            Autocomplete<Object>(
-              displayStringForOption: (drug) => _getDrugGenericName(drug),
-              optionsBuilder: (TextEditingValue textEditingValue) {
-                if (textEditingValue.text.isEmpty) return _allDrugs.take(10);
-                final query = textEditingValue.text.toLowerCase();
-                return _allDrugs.where((drug) {
-                  final name = _getDrugGenericName(drug).toLowerCase();
-                  return name.contains(query);
-                });
-              },
-              onSelected: (Object drug) {
+            TextField(
+              controller: entry.drugSearchController,
+              onChanged: (value) {
                 setState(() {
-                  entry.selectedDrug = drug;
-                  entry.selectedBrand = null;
+                  entry.drugSearchQuery = value;
+                  // Clear selection if user edits the text after selecting
+                  if (entry.selectedDrug != null && value != _getDrugGenericName(entry.selectedDrug)) {
+                    entry.selectedDrug = null;
+                    entry.selectedBrand = null;
+                  }
                 });
               },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                // Set initial text if drug already selected
-                if (entry.selectedDrug != null && controller.text.isEmpty) {
-                  controller.text = _getDrugGenericName(entry.selectedDrug);
-                }
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: InputDecoration(
-                    hintText: 'Search drug name...',
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                    isDense: true,
-                  ),
-                  style: const TextStyle(fontSize: 14),
-                );
-              },
-              optionsViewBuilder: (context, onSelected, options) {
-                return Align(
-                  alignment: Alignment.topLeft,
-                  child: Material(
-                    elevation: 4,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      width: MediaQuery.of(context).size.width - 64,
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: options.length,
-                        itemBuilder: (context, i) {
-                          final drug = options.elementAt(i);
-                          return ListTile(
-                            dense: true,
-                            title: Text(_getDrugGenericName(drug), style: const TextStyle(fontSize: 13)),
-                            subtitle: Text(
-                              _getDrugBrandNames(drug).join(', '),
-                              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onTap: () => onSelected(drug),
-                          );
+              decoration: InputDecoration(
+                hintText: 'Type to search drug name...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: entry.drugSearchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          setState(() {
+                            entry.drugSearchController.clear();
+                            entry.drugSearchQuery = '';
+                            entry.selectedDrug = null;
+                            entry.selectedBrand = null;
+                          });
                         },
-                      ),
-                    ),
-                  ),
-                );
-              },
+                      )
+                    : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                isDense: true,
+              ),
+              style: const TextStyle(fontSize: 14),
             ),
+
+            // Drug Suggestions Dropdown
+            if (entry.selectedDrug == null && entry.drugSearchQuery.length >= 2) ...[
+              const SizedBox(height: 4),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 250),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(15),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Builder(
+                  builder: (context) {
+                    final query = entry.drugSearchQuery.toLowerCase();
+                    final matches = _allDrugs.where((drug) {
+                      final name = _getDrugGenericName(drug).toLowerCase();
+                      final brands = _getDrugBrandNames(drug);
+                      return name.contains(query) || brands.any((b) => b.toLowerCase().contains(query));
+                    }).toList();
+                    
+                    if (matches.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('No drugs found', style: TextStyle(color: Colors.grey)),
+                      );
+                    }
+                    
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: matches.length,
+                      itemBuilder: (context, i) {
+                        final drug = matches[i];
+                        return ListTile(
+                          dense: true,
+                          title: Text(_getDrugGenericName(drug), style: const TextStyle(fontSize: 13)),
+                          subtitle: Text(
+                            _getDrugBrandNames(drug).join(', '),
+                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () {
+                            setState(() {
+                              entry.selectedDrug = drug;
+                              entry.selectedBrand = null;
+                              entry.drugSearchController.text = _getDrugGenericName(drug);
+                              entry.drugSearchQuery = '';
+                            });
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
 
             // Brand Selection
             if (entry.selectedDrug != null) ...[
@@ -672,6 +941,8 @@ class _MedicationEntry {
   String selectedDuration = '7 days';
   final TextEditingController dosageController;
   final TextEditingController instructionsController;
+  late final TextEditingController drugSearchController;
+  String drugSearchQuery = '';
   int morning = 0;
   int afternoon = 0;
   int evening = 0;
@@ -681,5 +952,6 @@ class _MedicationEntry {
   _MedicationEntry({
     required this.dosageController,
     required this.instructionsController,
-  });
+    TextEditingController? drugSearchController,
+  }) : drugSearchController = drugSearchController ?? TextEditingController();
 }

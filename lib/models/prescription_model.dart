@@ -82,6 +82,18 @@ class Prescription {
     this.doctorName,
     this.status = 'approved',
     this.medications = const [],
+    // Clinical / consultation-note fields
+    this.complaints = '',
+    this.examination = '',
+    this.diagnoses = const [],
+    this.department = '',
+    this.patientAge,
+    this.patientGender,
+    this.patientOpNumber,
+    this.visitType = 'Outpatient',
+    this.visitId,
+    this.advice = '',
+    this.followUpNotes = '',
     // Legacy single-drug fields (kept for backward compat)
     this.drugId = '',
     this.genericName = '',
@@ -107,6 +119,19 @@ class Prescription {
   final String? doctorName;
   final String status;
   final List<PrescriptionItem> medications;
+
+  // Clinical / consultation-note fields
+  final String complaints;
+  final String examination;
+  final List<String> diagnoses;
+  final String department;
+  final int? patientAge;
+  final String? patientGender;
+  final String? patientOpNumber;
+  final String visitType;
+  final String? visitId;
+  final String advice;
+  final String followUpNotes;
 
   // Legacy single-drug fields
   final String drugId;
@@ -154,6 +179,17 @@ class Prescription {
     String? doctorName,
     String? status,
     List<PrescriptionItem>? medications,
+    String? complaints,
+    String? examination,
+    List<String>? diagnoses,
+    String? department,
+    int? patientAge,
+    String? patientGender,
+    String? patientOpNumber,
+    String? visitType,
+    String? visitId,
+    String? advice,
+    String? followUpNotes,
     String? drugId,
     String? genericName,
     String? brandName,
@@ -178,6 +214,17 @@ class Prescription {
       doctorName: doctorName ?? this.doctorName,
       status: status ?? this.status,
       medications: medications ?? this.medications,
+      complaints: complaints ?? this.complaints,
+      examination: examination ?? this.examination,
+      diagnoses: diagnoses ?? this.diagnoses,
+      department: department ?? this.department,
+      patientAge: patientAge ?? this.patientAge,
+      patientGender: patientGender ?? this.patientGender,
+      patientOpNumber: patientOpNumber ?? this.patientOpNumber,
+      visitType: visitType ?? this.visitType,
+      visitId: visitId ?? this.visitId,
+      advice: advice ?? this.advice,
+      followUpNotes: followUpNotes ?? this.followUpNotes,
       drugId: drugId ?? this.drugId,
       genericName: genericName ?? this.genericName,
       brandName: brandName ?? this.brandName,
@@ -205,6 +252,17 @@ class Prescription {
       'doctorName': doctorName,
       'status': status,
       'medications': medications.map((m) => m.toMap()).toList(),
+      'complaints': complaints,
+      'examination': examination,
+      'diagnoses': diagnoses,
+      'department': department,
+      'patientAge': patientAge,
+      'patientGender': patientGender,
+      'patientOpNumber': patientOpNumber,
+      'visitType': visitType,
+      'visitId': visitId,
+      'advice': advice,
+      'followUpNotes': followUpNotes,
       // Legacy fields
       'drugId': drugId,
       'genericName': genericName,
@@ -242,6 +300,19 @@ class Prescription {
       doctorName: map['doctorName'],
       status: map['status'] ?? 'approved',
       medications: meds,
+      complaints: map['complaints'] ?? '',
+      examination: map['examination'] ?? '',
+      diagnoses: map['diagnoses'] != null
+          ? List<String>.from(map['diagnoses'])
+          : const [],
+      department: map['department'] ?? '',
+      patientAge: map['patientAge'] as int?,
+      patientGender: map['patientGender'] as String?,
+      patientOpNumber: map['patientOpNumber'] as String?,
+      visitType: map['visitType'] ?? 'Outpatient',
+      visitId: map['visitId'] as String?,
+      advice: map['advice'] ?? '',
+      followUpNotes: map['followUpNotes'] ?? '',
       drugId: map['drugId'] ?? '',
       genericName: map['genericName'] ?? '',
       brandName: map['brandName'] ?? '',

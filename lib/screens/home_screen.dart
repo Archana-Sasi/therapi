@@ -903,22 +903,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       : null,
                 ),
                 const SizedBox(height: 12),
-                _buildActionCard(
-                  icon: Icons.medical_services_outlined,
-                  label: 'Services',
-                  color: Colors.purple,
-                  onTap: () {
-                    // Navigate to services
-                  },
-                ),
-                _buildActionCard(
-                  icon: Icons.video_call_outlined,
-                  label: 'Consult Doctor',
-                  color: Colors.teal,
-                  onTap: () {
-                    _showJoinConsultationDialog();
-                  },
-                ),
                 Text(
                   user?.fullName ?? 'User',
                   style: const TextStyle(

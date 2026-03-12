@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+
 import '../models/prescription_model.dart';
+import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
 import 'create_prescription_screen.dart';
@@ -36,7 +39,14 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
   Future<void> _loadPrescriptions() async {
     setState(() => _isLoading = true);
     
-    final prescriptions = await _authService.getPrescriptionsByPharmacist();
+    final user = context.read<AuthProvider>().user;
+    List<Prescription> prescriptions = [];
+    
+    if (user?.role == 'doctor') {
+      prescriptions = await _authService.getPrescriptionsByDoctor();
+    } else {
+      prescriptions = await _authService.getPrescriptionsByPharmacist();
+    }
     
     if (mounted) {
       setState(() {
