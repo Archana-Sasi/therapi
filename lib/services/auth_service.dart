@@ -352,7 +352,7 @@ class AuthService {
     }
   }
 
-  /// Gets all users from Firestore (for admin/pharmacist dashboards).
+  /// Gets all users from Firestore (for doctor/pharmacist dashboards).
   Future<List<UserModel>> getAllUsers() async {
     try {
       final snapshot = await _firestore.collection('users').get();
@@ -365,7 +365,7 @@ class AuthService {
     }
   }
 
-  /// Deletes a user from Firestore (for admin/pharmacist).
+  /// Deletes a user from Firestore (for doctor/pharmacist).
   Future<bool> deleteUser(String userId) async {
     try {
       // Delete user document

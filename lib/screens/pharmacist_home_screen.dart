@@ -71,7 +71,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
     final allUsers = await _authService.getAllUsers();
     final currentUser = _authService.currentUser;
     
-    // Filter to show only patients (not the current user, other pharmacists, or admins)
+    // Filter to show only patients (not the current user, other pharmacists)
     final patients = allUsers.where((u) => 
         u.role == 'patient' && u.id != currentUser?.uid
     ).toList();
@@ -91,7 +91,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: const Text('Pharmacist'),
         centerTitle: true,
         leading: Builder(
           builder: (context) => IconButton(
@@ -147,7 +147,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Welcome, Admin',
+                            'Welcome, Pharmaist',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: Colors.grey[600],
                             ),
@@ -169,7 +169,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              'ADMIN',
+                              'PHARMACIST',
                               style: TextStyle(
                                 color: theme.colorScheme.onSecondary,
                                 fontSize: 10,
@@ -681,7 +681,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  user?.fullName ?? 'Admin',
+                  user?.fullName ?? 'Pharmacist',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -696,7 +696,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
-                    'ADMIN',
+                    'PHARMACIST',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 10,

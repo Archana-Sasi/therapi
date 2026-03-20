@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Individual medication item within a prescription
 class PrescriptionItem {
   PrescriptionItem({
     required this.drugId,

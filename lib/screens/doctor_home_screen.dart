@@ -38,7 +38,7 @@ class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Doctor Dashboard'),
+        title: const Text('Doctor'),
         centerTitle: true,
         actions: [
           IconButton(

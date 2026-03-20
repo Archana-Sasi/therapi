@@ -81,8 +81,23 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     final customDrugs = await _authService.getCustomDrugs();
     final curatedMedicines = CuratedMedicineData.medicines;
 
+    // Load ALL drugs from DrugData
     final allDrugs = [...DrugData.drugs, ...curatedMedicines, ...customDrugs];
-    allDrugs.sort((a, b) {
+    
+    // Remove duplicates based on generic + brand names to avoid clutter
+    final uniqueDrugs = <String, Object>{};
+    for (final drug in allDrugs) {
+      final generic = _getDrugGenericNameSafe(drug);
+      final brands = _getDrugBrandNames(drug).join('|');
+      final key = '$generic-$brands';
+      if (!uniqueDrugs.containsKey(key)) {
+        uniqueDrugs[key] = drug;
+      }
+    }
+    
+    final finalDrugsList = uniqueDrugs.values.toList();
+    
+    finalDrugsList.sort((a, b) {
       final nameA = _getDrugGenericNameSafe(a);
       final nameB = _getDrugGenericNameSafe(b);
       return nameA.compareTo(nameB);
@@ -91,7 +106,7 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     if (mounted) {
       setState(() {
         _patients = patients;
-        _allDrugs = allDrugs;
+        _allDrugs = finalDrugsList;
 
         if (widget.initialPatient != null) {
           try {
@@ -134,6 +149,8 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
   void _addDiagnosis() {
     final text = _diagnosisController.text.trim();
     if (text.isNotEmpty) {
+      // Clear focus first to dismiss keyboard if needed and ensure UI updates
+      FocusManager.instance.primaryFocus?.unfocus();
       setState(() {
         _diagnoses.add(text);
         _diagnosisController.clear();
@@ -227,7 +244,9 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
       medications: medications,
       complaints: _complaintsController.text.trim(),
       examination: _examinationController.text.trim(),
-      diagnoses: List<String>.from(_diagnoses),
+      diagnoses: _diagnosisController.text.trim().isNotEmpty 
+          ? [_diagnosisController.text.trim()] 
+          : [],
       department: _selectedDepartment,
       patientAge: _selectedPatient!.age,
       patientGender: _selectedPatient!.gender,
@@ -427,44 +446,16 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                           // Diagnosis
                           const Text('Diagnosis', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
                           const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _diagnosisController,
-                                  decoration: InputDecoration(
-                                    hintText: 'e.g., J44.9 COPD',
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                                    contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                                    isDense: true,
-                                  ),
-                                  style: const TextStyle(fontSize: 14),
-                                  onSubmitted: (_) => _addDiagnosis(),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                onPressed: _addDiagnosis,
-                                icon: const Icon(Icons.add_circle, color: AppColors.primary),
-                              ),
-                            ],
-                          ),
-                          if (_diagnoses.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: _diagnoses.asMap().entries.map((e) {
-                                return Chip(
-                                  label: Text(e.value, style: const TextStyle(fontSize: 12)),
-                                  deleteIcon: const Icon(Icons.close, size: 16),
-                                  onDeleted: () => setState(() => _diagnoses.removeAt(e.key)),
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                );
-                              }).toList(),
+                          TextField(
+                            controller: _diagnosisController,
+                            decoration: InputDecoration(
+                              hintText: 'e.g., J44.9 COPD',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                              isDense: true,
                             ),
-                          ],
+                            style: const TextStyle(fontSize: 14),
+                          ),
 
                           const SizedBox(height: 16),
                           
@@ -718,9 +709,18 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           onTap: () {
+                            FocusManager.instance.primaryFocus?.unfocus();
                             setState(() {
                               entry.selectedDrug = drug;
-                              entry.selectedBrand = null;
+                              final brands = _getDrugBrandNames(drug)
+                                  .where((b) => b.trim().isNotEmpty)
+                                  .toSet()
+                                  .toList();
+                              if (brands.isEmpty) {
+                                brands.add('Generic');
+                              }
+                              entry.selectedBrand = brands.length == 1 ? brands.first : null;
+                              
                               entry.drugSearchController.text = _getDrugGenericName(drug);
                               entry.drugSearchQuery = '';
                             });
@@ -747,9 +747,16 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                   isDense: true,
                 ),
                 isExpanded: true,
-                items: _getDrugBrandNames(entry.selectedDrug).map((brand) {
-                  return DropdownMenuItem(value: brand, child: Text(brand, style: const TextStyle(fontSize: 13)));
-                }).toList(),
+                items: (() {
+                  final brands = _getDrugBrandNames(entry.selectedDrug)
+                      .where((b) => b.trim().isNotEmpty)
+                      .toSet()
+                      .toList();
+                  if (brands.isEmpty) brands.add('Generic');
+                  return brands.map((brand) {
+                    return DropdownMenuItem(value: brand, child: Text(brand, style: const TextStyle(fontSize: 13)));
+                  }).toList();
+                })(),
                 onChanged: (v) => setState(() => entry.selectedBrand = v),
               ),
             ],
