@@ -508,6 +508,37 @@ class AuthService {
     }
   }
 
+  /// Adds multiple medications with a shared prescription to the current user's medication list.
+  Future<bool> addMedications(
+    List<Map<String, String>> drugs, {
+    String? prescriptionUrl,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      final medicationEntries = drugs.map((drug) {
+        final data = <String, dynamic>{
+          'drugId': drug['drugId'] ?? '',
+          'brandName': drug['brandName'] ?? '',
+          'verificationStatus': prescriptionUrl != null ? 'pending' : 'unverified',
+        };
+        if (prescriptionUrl != null) {
+          data['prescriptionUrl'] = prescriptionUrl;
+        }
+        return data;
+      }).toList();
+
+      await _firestore.collection('users').doc(user.uid).set({
+        'medications': FieldValue.arrayUnion(medicationEntries),
+      }, SetOptions(merge: true));
+      return true;
+    } catch (e) {
+      print('Failed to add medications: $e');
+      return false;
+    }
+  }
+
   /// Uploads a prescription image to Cloudinary and returns the URL.
   Future<String?> uploadPrescription(String filePath) async {
     final user = _auth.currentUser;

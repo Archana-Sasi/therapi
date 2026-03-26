@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-
+import '../data/drug_data.dart';
 import '../models/drug_model.dart';
 import '../services/auth_service.dart';
 import 'medication_reminder_screen.dart';
@@ -54,9 +54,10 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Select Brand'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Text(
               'Which brand of ${widget.drug.genericName} are you using?',
               style: TextStyle(color: Colors.grey[600]),
@@ -72,6 +73,7 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
             )),
           ],
         ),
+      ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -87,30 +89,24 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
   }
 
   Future<void> _addMedicationWithBrand(String brandName) async {
-    // Prescription upload is mandatory
-    final wantToUpload = await showDialog<bool>(
+    // Start building a list of drugs to submit with one prescription
+    final drugsBatch = <Map<String, String>>[
+      {'drugId': widget.drug.id, 'brandName': brandName, 'genericName': widget.drug.genericName},
+    ];
+
+    // Show the multi-drug builder bottom sheet
+    final confirmedDrugs = await showModalBottomSheet<List<Map<String, String>>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Prescription Required'),
-        content: const Text(
-          'A doctor-issued prescription is required to add this medication. '
-          'Your prescription will be verified by a pharmacist before the medication is activated.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Upload Prescription'),
-          ),
-        ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (context) => _MultiDrugSheet(initialDrugs: drugsBatch),
     );
 
-    if (wantToUpload != true) return;
+    if (confirmedDrugs == null || confirmedDrugs.isEmpty) return;
 
+    // Now upload a single prescription for all drugs
     final picker = ImagePicker();
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -118,6 +114,14 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Upload prescription for ${confirmedDrugs.length} medication${confirmedDrugs.length > 1 ? 's' : ''}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+            const Divider(height: 0),
             ListTile(
               leading: const Icon(Icons.camera_alt),
               title: const Text('Take a photo'),
@@ -139,13 +143,13 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
     if (pickedFile == null) return;
 
     setState(() => _isLoading = true);
-    
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Uploading prescription...')),
       );
     }
-    
+
     String? prescriptionUrl;
     try {
       prescriptionUrl = await _authService.uploadPrescription(pickedFile.path);
@@ -162,23 +166,28 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
       }
       return;
     }
-    
+
     if (prescriptionUrl == null) {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
 
-    final success = await _authService.addMedication(
-      widget.drug.id, 
-      brandName,
+    // Use batch add for all drugs with a shared prescription
+    final drugsForService = confirmedDrugs
+        .map((d) => {'drugId': d['drugId']!, 'brandName': d['brandName']!})
+        .toList();
+
+    final success = await _authService.addMedications(
+      drugsForService,
       prescriptionUrl: prescriptionUrl,
     );
-    
+
     if (success && mounted) {
+      final drugNames = confirmedDrugs.map((d) => d['genericName'] ?? d['drugId']).join(', ');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Prescription submitted. ${widget.drug.genericName} will be added after pharmacist approval.',
+            'Prescription submitted for $drugNames. Will be added after pharmacist approval.',
           ),
           duration: const Duration(seconds: 4),
         ),
@@ -190,13 +199,10 @@ class _DrugDetailScreenState extends State<DrugDetailScreen> {
         _verificationStatus = 'pending';
         _isLoading = false;
       });
-
-      // Do NOT prompt for reminders - medication is pending verification
-
     } else if (mounted) {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to add medication. Please try again.')),
+        const SnackBar(content: Text('Failed to add medications. Please try again.')),
       );
     }
   }
@@ -554,6 +560,285 @@ class _SectionCard extends StatelessWidget {
             child,
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet for building a batch of drugs to submit with one prescription
+class _MultiDrugSheet extends StatefulWidget {
+  const _MultiDrugSheet({required this.initialDrugs});
+
+  final List<Map<String, String>> initialDrugs;
+
+  @override
+  State<_MultiDrugSheet> createState() => _MultiDrugSheetState();
+}
+
+class _MultiDrugSheetState extends State<_MultiDrugSheet> {
+  late List<Map<String, String>> _drugs;
+  final _searchController = TextEditingController();
+  List<DrugModel> _searchResults = [];
+  bool _isSearching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _drugs = List.from(widget.initialDrugs);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _searchDrugs(String query) {
+    if (query.length < 2) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+    setState(() {
+      _isSearching = true;
+      _searchResults = DrugData.searchDrugs(query)
+          .where((drug) => !_drugs.any((d) => d['drugId'] == drug.id))
+          .take(10)
+          .toList();
+    });
+  }
+
+  Future<void> _addDrug(DrugModel drug) async {
+    // Show brand selection for this drug
+    final selectedBrand = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Select brand for ${drug.genericName}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: drug.brandNames.map((brand) => ListTile(
+            title: Text(brand),
+            leading: const Icon(Icons.medication),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            onTap: () => Navigator.pop(context, brand),
+          )).toList(),
+        ),
+      ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedBrand != null) {
+      setState(() {
+        _drugs.add({
+          'drugId': drug.id,
+          'brandName': selectedBrand,
+          'genericName': drug.genericName,
+        });
+        _searchController.clear();
+        _searchResults = [];
+        _isSearching = false;
+      });
+    }
+  }
+
+  void _removeDrug(int index) {
+    setState(() {
+      _drugs.removeAt(index);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (context, scrollController) => Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12, bottom: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Title
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.medication, color: Colors.blue),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Medications to Submit',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Text(
+                  '${_drugs.length} drug${_drugs.length != 1 ? 's' : ''}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+
+          // Drug list
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                // Current drugs in batch
+                ..._drugs.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final drug = entry.value;
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    color: Colors.green.shade50,
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.green.shade100,
+                        child: Text(
+                          '${idx + 1}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        drug['genericName'] ?? drug['drugId'] ?? '',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text('Brand: ${drug['brandName']}'),
+                      trailing: _drugs.length > 1
+                          ? IconButton(
+                              icon: const Icon(Icons.remove_circle, color: Colors.red),
+                              onPressed: () => _removeDrug(idx),
+                            )
+                          : null, // Can't remove the last drug
+                    ),
+                  );
+                }),
+
+                const SizedBox(height: 16),
+
+                // Search to add more
+                Text(
+                  'Add more medications from the same prescription:',
+                  style: TextStyle(
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _searchController,
+                  onChanged: _searchDrugs,
+                  decoration: InputDecoration(
+                    hintText: 'Search by drug name...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              _searchDrugs('');
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                ),
+
+                // Search results
+                if (_isSearching && _searchResults.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No matching drugs found',
+                      style: TextStyle(color: Colors.grey[500]),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ..._searchResults.map((drug) => Card(
+                  margin: const EdgeInsets.only(top: 4),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.blue.shade50,
+                      child: const Icon(Icons.add, color: Colors.blue),
+                    ),
+                    title: Text(drug.genericName),
+                    subtitle: Text(
+                      drug.brandNames.join(', '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () => _addDrug(drug),
+                  ),
+                )),
+
+                const SizedBox(height: 80), // Space for bottom button
+              ],
+            ),
+          ),
+
+          // Bottom action buttons
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, null),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.pop(context, _drugs),
+                    icon: const Icon(Icons.upload_file),
+                    label: Text('Upload Prescription (${_drugs.length})'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
