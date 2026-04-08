@@ -15,7 +15,7 @@ class UserNotification {
   final String id;
   final String title;
   final String message;
-  final String senderId;     // Pharmacist or Admin who sent it
+  final String senderId;     // Pharmacist or doctor who sent it
   final String senderName;
   final String recipientId;  // Patient receiving the notification
   final DateTime createdAt;

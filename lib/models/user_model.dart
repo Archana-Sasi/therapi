@@ -19,7 +19,7 @@ class UserModel {
   final String fullName;
   final String? photoUrl;
   final String? phoneNumber;
-  final String role; // patient, pharmacist, admin
+  final String role; // patient, pharmacist, doctor
   final int? age;
   final String? gender; // male, female, other
   final String? opNumber; // OP (Outpatient) registration number

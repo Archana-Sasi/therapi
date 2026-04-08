@@ -100,6 +100,7 @@ class _RequestConsultationScreenState extends State<RequestConsultationScreen> {
       id: consultationId,
       patientId: user.id,
       patientName: user.fullName,
+      patientOpNumber: user.opNumber,
       pharmacistId: _selectedPharmacist!.id,
       pharmacistName: _selectedPharmacist!.fullName,
       requestedDate: _selectedDate,

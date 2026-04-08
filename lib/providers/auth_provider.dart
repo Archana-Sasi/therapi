@@ -195,6 +195,23 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> deleteAccount({String? password}) async {
+    _setLoading(true);
+    try {
+      final success = await _authService.deleteCurrentAccount(password: password);
+      if (success) {
+        _user = null;
+        _otpSent = false;
+        _phoneNumber = null;
+        _needsProfileCompletion = false;
+        notifyListeners();
+      }
+      return success;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> refreshUser() async {
     final currentUser = _authService.currentUser;
     if (currentUser != null) {

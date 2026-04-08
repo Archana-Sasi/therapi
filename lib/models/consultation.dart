@@ -14,6 +14,7 @@ class Consultation {
     required this.id,
     required this.patientId,
     required this.patientName,
+    this.patientOpNumber,
     required this.pharmacistId,
     required this.pharmacistName,
     required this.requestedDate,
@@ -31,6 +32,7 @@ class Consultation {
   final String id;
   final String patientId;
   final String patientName;
+  final String? patientOpNumber;
   final String pharmacistId;
   final String pharmacistName;
   final DateTime requestedDate;
@@ -49,6 +51,7 @@ class Consultation {
       'id': id,
       'patientId': patientId,
       'patientName': patientName,
+      'patientOpNumber': patientOpNumber,
       'pharmacistId': pharmacistId,
       'pharmacistName': pharmacistName,
       'requestedDate': Timestamp.fromDate(requestedDate),
@@ -71,6 +74,7 @@ class Consultation {
       id: map['id'] ?? '',
       patientId: map['patientId'] ?? '',
       patientName: map['patientName'] ?? '',
+      patientOpNumber: map['patientOpNumber'],
       pharmacistId: map['pharmacistId'] ?? '',
       pharmacistName: map['pharmacistName'] ?? '',
       requestedDate: map['requestedDate'] != null
@@ -99,6 +103,7 @@ class Consultation {
     String? id,
     String? patientId,
     String? patientName,
+    String? patientOpNumber,
     String? pharmacistId,
     String? pharmacistName,
     DateTime? requestedDate,
@@ -116,6 +121,7 @@ class Consultation {
       id: id ?? this.id,
       patientId: patientId ?? this.patientId,
       patientName: patientName ?? this.patientName,
+      patientOpNumber: patientOpNumber ?? this.patientOpNumber,
       pharmacistId: pharmacistId ?? this.pharmacistId,
       pharmacistName: pharmacistName ?? this.pharmacistName,
       requestedDate: requestedDate ?? this.requestedDate,

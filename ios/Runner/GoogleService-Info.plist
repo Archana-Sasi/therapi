@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>932240339520-jvbkk16vd7gq46hlu3vtqs1po6oi0r8g.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.932240339520-jvbkk16vd7gq46hlu3vtqs1po6oi0r8g</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBlt1OgEtHq--4fXYJYw3BT0CzG4089RMA</string>
+	<key>GCM_SENDER_ID</key>
+	<string>932240339520</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.therapApp</string>
+	<key>PROJECT_ID</key>
+	<string>therapeutic-c864a</string>
+	<key>STORAGE_BUCKET</key>
+	<string>therapeutic-c864a.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:932240339520:ios:de1644f62adad0857be5a5</string>
+</dict>
+</plist>

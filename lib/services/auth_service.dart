@@ -15,6 +15,7 @@ import '../models/prescription_model.dart';
 import '../models/user_model.dart';
 import '../models/user_notification.dart';
 import '../models/symptom_log.dart';
+import '../utils/prescription_expiry.dart';
 
 /// Firebase Authentication service for login, signup, Google sign-in, phone OTP, and password reset.
 class AuthService {
@@ -403,6 +404,54 @@ class AuthService {
       return true;
     } catch (e) {
       print('Failed to delete user: $e');
+      return false;
+    }
+  }
+
+  /// Deletes the currently authenticated user's account and all associated data.
+  Future<bool> deleteCurrentAccount({String? password}) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      // Re-authenticate to prevent requires-recent-login error
+      final isGoogle = user.providerData.any((info) => info.providerId == 'google.com');
+      final isPassword = user.providerData.any((info) => info.providerId == 'password');
+
+      if (isGoogle) {
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signInSilently();
+        if (googleUser != null) {
+          final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+          final credential = GoogleAuthProvider.credential(
+            accessToken: googleAuth.accessToken,
+            idToken: googleAuth.idToken,
+          );
+          await user.reauthenticateWithCredential(credential);
+        }
+      } else if (isPassword && password != null && user.email != null) {
+        final credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: password,
+        );
+        await user.reauthenticateWithCredential(credential);
+      }
+
+      final userId = user.uid;
+
+      // 1. Delete all Firestore data (profile, reminders, logs, etc.)
+      await deleteUser(userId);
+
+      // 2. Delete the Firebase Auth account itself
+      await user.delete();
+
+      // 3. Clear Google sign-in local state
+      if (isGoogle) {
+        await _googleSignIn.disconnect();
+      }
+      
+      return true;
+    } catch (e) {
+      print('Failed to delete account: $e');
       return false;
     }
   }
@@ -871,15 +920,22 @@ class AuthService {
     try {
       // Get the log details first (for missed medication notification)
       MedicationLog? log;
-      if (status == MedicationStatus.missed) {
-        final logDoc = await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('medication_logs')
-            .doc(logId)
-            .get();
-        if (logDoc.exists) {
-          log = MedicationLog.fromMap(logDoc.data()!);
+      final logDoc = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('medication_logs')
+          .doc(logId)
+          .get();
+      if (logDoc.exists) {
+        log = MedicationLog.fromMap(logDoc.data()!);
+      }
+
+      // ── Prescription expiry check (block Red-level for "taken") ──
+      if (status == MedicationStatus.taken && log != null) {
+        final expiryLevel = await getExpiryLevelForDrug(log.drugId);
+        if (expiryLevel == PrescriptionExpiryLevel.red) {
+          print('Blocked: prescription expired >60 days for ${log.brandName}');
+          return false; // server-side guard
         }
       }
 
@@ -1617,12 +1673,17 @@ class AuthService {
   }
 
   /// Rejects a prescription
-  Future<bool> rejectPrescription(String prescriptionId) async {
+  Future<bool> rejectPrescription(String prescriptionId, [String? reason]) async {
     try {
-      await _firestore.collection('prescriptions').doc(prescriptionId).update({
+      final updateData = <String, dynamic>{
         'status': 'rejected',
         'isActive': false,
-      });
+      };
+      if (reason != null && reason.isNotEmpty) {
+        updateData['rejectionReason'] = reason;
+      }
+      
+      await _firestore.collection('prescriptions').doc(prescriptionId).update(updateData);
       return true;
     } catch (e) {
       print('Failed to reject prescription: $e');
@@ -2114,6 +2175,125 @@ class AuthService {
     } catch (e) {
       print('Failed to delete consultation: $e');
       return false;
+    }
+  }
+
+  // ============ PRESCRIPTION EXPIRY METHODS ============
+
+  /// Returns the [PrescriptionExpiryLevel] for a specific drug by looking up
+  /// the most recent active prescription that contains this drug.
+  Future<PrescriptionExpiryLevel> getExpiryLevelForDrug(String drugId) async {
+    final user = _auth.currentUser;
+    if (user == null) return PrescriptionExpiryLevel.none;
+
+    try {
+      final prescriptions = await getPrescriptionsForPatient(user.uid);
+
+      // Find the most recent active prescription containing this drug
+      for (final rx in prescriptions) {
+        if (!rx.isActive) continue;
+
+        final containsDrug = rx.effectiveMedications.any(
+          (med) => med.drugId == drugId || med.brandName.toLowerCase() == drugId.toLowerCase(),
+        );
+        // Also check legacy single-drug field
+        if (containsDrug || rx.drugId == drugId) {
+          return rx.expiryLevel;
+        }
+      }
+
+      // No prescription found for this drug
+      return PrescriptionExpiryLevel.none;
+    } catch (e) {
+      print('Failed to get expiry level: $e');
+      return PrescriptionExpiryLevel.none;
+    }
+  }
+
+  /// Returns the expiry date and level for a drug, wrapped in a map.
+  Future<Map<String, dynamic>> getExpiryInfoForDrug(String drugId) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return {'level': PrescriptionExpiryLevel.none, 'daysSinceExpiry': 0};
+    }
+
+    try {
+      final prescriptions = await getPrescriptionsForPatient(user.uid);
+
+      for (final rx in prescriptions) {
+        if (!rx.isActive) continue;
+
+        final containsDrug = rx.effectiveMedications.any(
+          (med) => med.drugId == drugId || med.brandName.toLowerCase() == drugId.toLowerCase(),
+        );
+        if (containsDrug || rx.drugId == drugId) {
+          return {
+            'level': rx.expiryLevel,
+            'daysSinceExpiry': rx.daysSinceExpiry,
+            'expiryDate': rx.expiryDate,
+          };
+        }
+      }
+
+      return {'level': PrescriptionExpiryLevel.none, 'daysSinceExpiry': 0};
+    } catch (e) {
+      print('Failed to get expiry info: $e');
+      return {'level': PrescriptionExpiryLevel.none, 'daysSinceExpiry': 0};
+    }
+  }
+
+  /// Notifies all pharmacists about a patient's expired prescription.
+  Future<void> notifyPharmacistPrescriptionExpiry(
+    String patientId,
+    String drugName,
+    PrescriptionExpiryLevel level,
+  ) async {
+    try {
+      final patientProfile = await getUserProfile(patientId);
+      final patientName = patientProfile?.fullName ?? 'A patient';
+      final pharmacists = await getPharmacists();
+
+      String emoji;
+      String levelText;
+      switch (level) {
+        case PrescriptionExpiryLevel.green:
+          emoji = '⚠️';
+          levelText = 'recently expired';
+          break;
+        case PrescriptionExpiryLevel.yellow:
+          emoji = '🟡';
+          levelText = 'expired over 30 days ago';
+          break;
+        case PrescriptionExpiryLevel.red:
+          emoji = '🔴';
+          levelText = 'expired over 60 days ago';
+          break;
+        default:
+          return; // no notification for none
+      }
+
+      for (final pharmacist in pharmacists) {
+        final notificationId =
+            '${patientId}_rx_expiry_${DateTime.now().millisecondsSinceEpoch}';
+        final notification = UserNotification(
+          id: notificationId,
+          title: '$emoji Prescription Expiry Alert',
+          message:
+              "$patientName's prescription for $drugName has $levelText. Please follow up.",
+          senderId: patientId,
+          senderName: patientName,
+          recipientId: pharmacist.id,
+          createdAt: DateTime.now(),
+          type: NotificationType.alert,
+        );
+
+        await _firestore
+            .collection('notifications')
+            .doc(notificationId)
+            .set(notification.toMap());
+      }
+    } catch (e) {
+      print('Failed to notify pharmacists of expiry: $e');
     }
   }
 }

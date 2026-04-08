@@ -25,7 +25,6 @@ class DoctorHomeScreen extends StatefulWidget {
 
 class _DoctorHomeScreenState extends State<DoctorHomeScreen> {
   final _authService = AuthService();
-  final _videoService = VideoConsultationService();
   @override
   void initState() {
     super.initState();

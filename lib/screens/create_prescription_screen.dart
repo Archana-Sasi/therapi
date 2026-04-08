@@ -44,6 +44,7 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
   String _selectedDepartment = 'Respiratory Medicine';
   String _selectedVisitType = 'Outpatient';
   final _visitIdController = TextEditingController();
+  DateTime _expiryDate = DateTime.now().add(const Duration(days: 30));
   
   final _adviceController = TextEditingController();
   final _notesController = TextEditingController();
@@ -161,7 +162,6 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
   void _addMedication() {
     setState(() {
       _medicationEntries.add(_MedicationEntry(
-        dosageController: TextEditingController(),
         instructionsController: TextEditingController(),
         drugSearchController: TextEditingController(),
       ));
@@ -170,7 +170,6 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
 
   void _removeMedication(int index) {
     setState(() {
-      _medicationEntries[index].dosageController.dispose();
       _medicationEntries[index].instructionsController.dispose();
       _medicationEntries[index].drugSearchController.dispose();
       _medicationEntries.removeAt(index);
@@ -200,12 +199,7 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
         );
         return;
       }
-      if (entry.dosageController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please enter dosage for medication ${i + 1}'), backgroundColor: Colors.red),
-        );
-        return;
-      }
+
     }
 
     setState(() => _isSaving = true);
@@ -219,14 +213,16 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
         drugId: _getDrugId(entry.selectedDrug),
         genericName: _getDrugGenericName(entry.selectedDrug),
         brandName: entry.selectedBrand!,
-        dosage: entry.dosageController.text.trim(),
+        dosage: entry.selectedDosage,
         duration: entry.selectedDuration,
         instructions: entry.instructionsController.text.trim(),
         morning: entry.morning,
         afternoon: entry.afternoon,
         evening: entry.evening,
         night: entry.night,
-        beforeFood: entry.beforeFood,
+        beforeFood: entry.foodTiming == 'Before food',
+        frequency: entry.frequency,
+        foodTiming: entry.foodTiming,
       );
     }).toList();
 
@@ -239,6 +235,7 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
       doctorId: isDoctor ? currentUser?.id : null,
       doctorName: isDoctor ? currentUser?.fullName : null,
       createdAt: DateTime.now(),
+      expiryDate: _expiryDate,
       status: isDoctor ? 'pending' : 'approved',
       isActive: !isDoctor,
       medications: medications,
@@ -294,7 +291,6 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     _adviceController.dispose();
     _notesController.dispose();
     for (final entry in _medicationEntries) {
-      entry.dosageController.dispose();
       entry.instructionsController.dispose();
     }
     super.dispose();
@@ -325,25 +321,107 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           const SizedBox(height: 8),
-                          DropdownButtonFormField<UserModel>(
-                            value: _selectedPatient,
-                            decoration: InputDecoration(
-                              hintText: 'Select a patient',
-                              prefixIcon: const Icon(Icons.person),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            items: _patients.map((patient) {
-                              return DropdownMenuItem(
-                                value: patient,
-                                child: Text(patient.fullName.isNotEmpty ? patient.fullName : patient.email),
+                          Autocomplete<UserModel>(
+                            displayStringForOption: (UserModel option) => 
+                                '${option.fullName.isNotEmpty ? option.fullName : option.email} ${option.opNumber?.isNotEmpty == true ? '(OP: ${option.opNumber})' : ''}',
+                            optionsBuilder: (TextEditingValue textEditingValue) {
+                              if (textEditingValue.text.isEmpty) {
+                                return _patients;
+                              }
+                              final query = textEditingValue.text.toLowerCase();
+                              return _patients.where((UserModel p) {
+                                return p.fullName.toLowerCase().contains(query) ||
+                                       (p.opNumber?.toLowerCase().contains(query) ?? false) ||
+                                       p.email.toLowerCase().contains(query) ||
+                                       (p.phoneNumber?.toLowerCase().contains(query) ?? false);
+                              });
+                            },
+                            onSelected: (UserModel selection) {
+                              setState(() => _selectedPatient = selection);
+                            },
+                            fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                              // Auto-fill text if a patient is pre-selected
+                              if (_selectedPatient != null && textEditingController.text.isEmpty) {
+                                textEditingController.text = '${_selectedPatient!.fullName.isNotEmpty ? _selectedPatient!.fullName : _selectedPatient!.email} ${_selectedPatient!.opNumber?.isNotEmpty == true ? '(OP: ${_selectedPatient!.opNumber})' : ''}';
+                              }
+                              
+                              return TextFormField(
+                                controller: textEditingController,
+                                focusNode: focusNode,
+                                decoration: InputDecoration(
+                                  hintText: 'Search patient by name, OP No, or email...',
+                                  prefixIcon: const Icon(Icons.person_search),
+                                  suffixIcon: _selectedPatient != null && widget.initialPatient == null
+                                      ? IconButton(
+                                          icon: const Icon(Icons.clear, size: 20),
+                                          onPressed: () {
+                                            textEditingController.clear();
+                                            setState(() => _selectedPatient = null);
+                                            focusNode.requestFocus();
+                                          },
+                                        ) 
+                                      : null,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                enabled: widget.initialPatient == null,
+                                validator: (value) => _selectedPatient == null ? 'Please select a valid patient from the list' : null,
+                                onChanged: (val) {
+                                  // Clear selection if user edits the text to something different
+                                  if (_selectedPatient != null) {
+                                    final currentDisplay = '${_selectedPatient!.fullName.isNotEmpty ? _selectedPatient!.fullName : _selectedPatient!.email} ${_selectedPatient!.opNumber?.isNotEmpty == true ? '(OP: ${_selectedPatient!.opNumber})' : ''}';
+                                    if (val != currentDisplay) {
+                                      setState(() => _selectedPatient = null);
+                                    }
+                                  }
+                                },
                               );
-                            }).toList(),
-                            onChanged: widget.initialPatient != null 
-                                ? null // Disable if patient is pre-selected
-                                : (value) => setState(() => _selectedPatient = value),
-                            validator: (value) => value == null ? 'Please select a patient' : null,
+                            },
+                            optionsViewBuilder: (context, onSelected, options) {
+                              return Align(
+                                alignment: Alignment.topLeft,
+                                child: Material(
+                                  elevation: 6.0,
+                                  borderRadius: BorderRadius.circular(12),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: Container(
+                                    width: MediaQuery.of(context).size.width - 32, // Match screen padding
+                                    constraints: const BoxConstraints(maxHeight: 300),
+                                    color: Colors.white,
+                                    child: ListView.separated(
+                                      padding: EdgeInsets.zero,
+                                      shrinkWrap: true,
+                                      itemCount: options.length,
+                                      separatorBuilder: (context, index) => const Divider(height: 1),
+                                      itemBuilder: (BuildContext context, int index) {
+                                        final UserModel option = options.elementAt(index);
+                                        return ListTile(
+                                          dense: true,
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                          leading: CircleAvatar(
+                                            backgroundColor: AppColors.primary.withOpacity(0.1),
+                                            child: Text(
+                                              option.fullName.isNotEmpty ? option.fullName[0].toUpperCase() : '?',
+                                              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                          title: Text(
+                                            option.fullName.isNotEmpty ? option.fullName : 'No Name',
+                                            style: const TextStyle(fontWeight: FontWeight.bold),
+                                          ),
+                                          subtitle: Text(
+                                            'OP: ${option.opNumber?.isNotEmpty == true ? option.opNumber : 'N/A'} | ${option.email}',
+                                            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                          ),
+                                          onTap: () => onSelected(option),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
 
                           const SizedBox(height: 24),
@@ -396,18 +474,85 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
                           ),
                           const SizedBox(height: 12),
 
-                          // Visit ID
-                          const Text('Visit ID', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                          const SizedBox(height: 6),
-                          TextField(
-                            controller: _visitIdController,
-                            decoration: InputDecoration(
-                              hintText: 'e.g., V-12345',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                              isDense: true,
-                            ),
-                            style: const TextStyle(fontSize: 14),
+                          // Visit ID & Expiry Date
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Visit ID', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                                    const SizedBox(height: 6),
+                                    TextField(
+                                      controller: _visitIdController,
+                                      decoration: InputDecoration(
+                                        hintText: 'e.g., V-12345',
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                                        isDense: true,
+                                      ),
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: const Text('Expiry Date (Default 30d)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    InkWell(
+                                      onTap: () async {
+                                        FocusManager.instance.primaryFocus?.unfocus();
+                                        final picked = await showDatePicker(
+                                          context: context,
+                                          initialDate: _expiryDate,
+                                          firstDate: DateTime.now(),
+                                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                                          builder: (context, child) {
+                                            return Theme(
+                                              data: Theme.of(context).copyWith(
+                                                colorScheme: Theme.of(context).colorScheme.copyWith(
+                                                  primary: AppColors.primary,
+                                                ),
+                                              ),
+                                              child: child!,
+                                            );
+                                          },
+                                        );
+                                        if (picked != null && mounted) {
+                                          setState(() => _expiryDate = picked);
+                                        }
+                                      },
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Container(
+                                        height: 38,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.grey.shade400),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              '${_expiryDate.day.toString().padLeft(2, '0')}/${_expiryDate.month.toString().padLeft(2, '0')}/${_expiryDate.year}',
+                                              style: const TextStyle(fontSize: 14),
+                                            ),
+                                            const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 12),
 
@@ -765,15 +910,17 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
             const SizedBox(height: 12),
             const Text('Dosage *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
             const SizedBox(height: 6),
-            TextField(
-              controller: entry.dosageController,
+            DropdownButtonFormField<String>(
+              value: entry.selectedDosage,
               decoration: InputDecoration(
-                hintText: 'e.g., 500mg, 1 tablet',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                 isDense: true,
               ),
-              style: const TextStyle(fontSize: 14),
+              items: ['½ tablet', '1 tablet', '1½ tablets', '2 tablets']
+                  .map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 13))))
+                  .toList(),
+              onChanged: (v) => setState(() => entry.selectedDosage = v ?? '1 tablet'),
             ),
 
             // Duration
@@ -789,6 +936,23 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
               ),
               items: _durationOptions.map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 13)))).toList(),
               onChanged: (v) => setState(() => entry.selectedDuration = v ?? '7 days'),
+            ),
+
+            // Frequency
+            const SizedBox(height: 12),
+            const Text('Frequency', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: entry.frequency,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                isDense: true,
+              ),
+              items: ['Daily', 'Alternate days', 'Weekly', 'Custom']
+                  .map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 13))))
+                  .toList(),
+              onChanged: (v) => setState(() => entry.frequency = v ?? 'Daily'),
             ),
 
             // Tablets Per Time
@@ -817,54 +981,27 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
             const SizedBox(height: 12),
             const Text('Food Timing', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
             const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: ChoiceChip(
-                    label: Text(
-                      'Before Food',
-                      style: TextStyle(
-                        color: entry.beforeFood ? Colors.green[900] : Colors.grey[800],
-                        fontWeight: FontWeight.w600, fontSize: 12,
-                      ),
-                    ),
-                    selected: entry.beforeFood,
-                    onSelected: (v) => setState(() => entry.beforeFood = true),
-                    selectedColor: Colors.green.shade100,
-                    backgroundColor: Colors.grey.shade100,
-                    side: BorderSide(color: entry.beforeFood ? Colors.green : Colors.grey.shade300),
-                    showCheckmark: false,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ChoiceChip(
-                    label: Text(
-                      'After Food',
-                      style: TextStyle(
-                        color: !entry.beforeFood ? Colors.orange[900] : Colors.grey[800],
-                        fontWeight: FontWeight.w600, fontSize: 12,
-                      ),
-                    ),
-                    selected: !entry.beforeFood,
-                    onSelected: (v) => setState(() => entry.beforeFood = false),
-                    selectedColor: Colors.orange.shade100,
-                    backgroundColor: Colors.grey.shade100,
-                    side: BorderSide(color: !entry.beforeFood ? Colors.orange : Colors.grey.shade300),
-                    showCheckmark: false,
-                  ),
-                ),
-              ],
+            DropdownButtonFormField<String>(
+              value: entry.foodTiming,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                isDense: true,
+              ),
+              items: ['Before food', 'After food', 'Empty stomach', 'With food']
+                  .map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(fontSize: 13))))
+                  .toList(),
+              onChanged: (v) => setState(() => entry.foodTiming = v ?? 'Before food'),
             ),
 
             // Instructions
             const SizedBox(height: 12),
-            const Text('Instructions', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            const Text('Doctor Instructions', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
             const SizedBox(height: 6),
             TextField(
               controller: entry.instructionsController,
               decoration: InputDecoration(
-                hintText: 'e.g., Take with water',
+                hintText: 'e.g., Take on alternate days, or Take ½ tablet at night',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                 isDense: true,
@@ -878,61 +1015,38 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     );
   }
 
-  Widget _buildTabletRow(String label, int count, ValueChanged<int> onChanged) {
+  Widget _buildTabletRow(String label, double count, ValueChanged<double> onChanged) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: count > 0 ? Colors.black : Colors.grey[600],
-              ),
-            ),
-          ),
-          const Spacer(),
-          InkWell(
-            onTap: count > 0 ? () => onChanged(count - 1) : null,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              width: 28, height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: count > 0 ? Colors.red.shade50 : Colors.grey.shade100,
-                border: Border.all(color: count > 0 ? Colors.red.shade200 : Colors.grey.shade300),
-              ),
-              child: Icon(Icons.remove, size: 14, color: count > 0 ? Colors.red : Colors.grey),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: count > 0 ? Colors.black : Colors.grey[600],
             ),
           ),
           SizedBox(
-            width: 40,
-            child: Center(
-              child: Text('$count', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: count > 0 ? AppColors.primary : Colors.grey)),
-            ),
-          ),
-          InkWell(
-            onTap: count < 3 ? () => onChanged(count + 1) : null,
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              width: 28, height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: count < 3 ? Colors.green.shade50 : Colors.grey.shade100,
-                border: Border.all(color: count < 3 ? Colors.green.shade200 : Colors.grey.shade300),
+            width: 140,
+            child: DropdownButtonFormField<double>(
+              value: count,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                isDense: true,
               ),
-              child: Icon(Icons.add, size: 14, color: count < 3 ? Colors.green : Colors.grey),
-            ),
-          ),
-          const SizedBox(width: 6),
-          SizedBox(
-            width: 45,
-            child: Text(
-              count == 0 ? '' : count == 1 ? 'tablet' : 'tablets',
-              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+              items: [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0].map((val) {
+                return DropdownMenuItem(
+                  value: val,
+                  child: Text(PrescriptionItem.getReadableDosage(val), style: const TextStyle(fontSize: 13)),
+                );
+              }).toList(),
+              onChanged: (v) {
+                if (v != null) onChanged(v);
+              },
             ),
           ),
         ],
@@ -940,24 +1054,23 @@ class _CreatePrescriptionScreenState extends State<CreatePrescriptionScreen> {
     );
   }
 }
-
 /// Internal state holder for one medication entry in the form
 class _MedicationEntry {
   dynamic selectedDrug;
   String? selectedBrand;
   String selectedDuration = '7 days';
-  final TextEditingController dosageController;
+  String selectedDosage = '1 tablet';
   final TextEditingController instructionsController;
   late final TextEditingController drugSearchController;
   String drugSearchQuery = '';
-  int morning = 0;
-  int afternoon = 0;
-  int evening = 0;
-  int night = 0;
-  bool beforeFood = true;
+  double morning = 0.0;
+  double afternoon = 0.0;
+  double evening = 0.0;
+  double night = 0.0;
+  String frequency = 'Daily';
+  String foodTiming = 'Before food';
 
   _MedicationEntry({
-    required this.dosageController,
     required this.instructionsController,
     TextEditingController? drugSearchController,
   }) : drugSearchController = drugSearchController ?? TextEditingController();

@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 import '../utils/app_colors.dart';
 import 'create_prescription_screen.dart';
+import 'prescription_sheet_screen.dart';
 
 /// Screen showing all prescriptions created by the pharmacist
 class PrescriptionsScreen extends StatefulWidget {
@@ -62,11 +63,13 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
       if (query.isEmpty) {
         _filteredPrescriptions = _prescriptions;
       } else {
-        _filteredPrescriptions = _prescriptions.where((p) =>
-            p.patientName.toLowerCase().contains(query.toLowerCase()) ||
-            p.genericName.toLowerCase().contains(query.toLowerCase()) ||
-            p.brandName.toLowerCase().contains(query.toLowerCase())
-        ).toList();
+        _filteredPrescriptions = _prescriptions.where((p) {
+          final q = query.toLowerCase();
+          return p.patientName.toLowerCase().contains(q) ||
+                 (p.patientOpNumber ?? '').toLowerCase().contains(q) ||
+                 p.genericName.toLowerCase().contains(q) ||
+                 p.brandName.toLowerCase().contains(q);
+        }).toList();
       }
     });
   }
@@ -93,11 +96,17 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
 
     if (confirmed == true) {
       final success = await _authService.deletePrescription(prescription.id);
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Prescription deleted'), backgroundColor: Colors.green),
-        );
-        _loadPrescriptions();
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Prescription deleted'), backgroundColor: Colors.green),
+          );
+          _loadPrescriptions();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete prescription'), backgroundColor: Colors.red),
+          );
+        }
       }
     }
   }
@@ -106,7 +115,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Prescriptions'),
+        title: Text(context.read<AuthProvider>().user?.role == 'doctor' ? 'My Prescriptions' : 'Prescriptions'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -211,6 +220,7 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
                             final prescription = _filteredPrescriptions[index];
                             return _PrescriptionCard(
                               prescription: prescription,
+                              isDoctor: context.read<AuthProvider>().user?.role == 'doctor',
                               onDelete: () => _deletePrescription(prescription),
                               onToggleActive: () async {
                                 await _authService.togglePrescriptionActive(
@@ -248,11 +258,13 @@ class _PrescriptionsScreenState extends State<PrescriptionsScreen> {
 class _PrescriptionCard extends StatelessWidget {
   const _PrescriptionCard({
     required this.prescription,
+    required this.isDoctor,
     required this.onDelete,
     required this.onToggleActive,
   });
 
   final Prescription prescription;
+  final bool isDoctor;
   final VoidCallback onDelete;
   final VoidCallback onToggleActive;
 
@@ -260,11 +272,21 @@ class _PrescriptionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PrescriptionSheetScreen(prescription: prescription),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Header Row
             Row(
               children: [
@@ -286,7 +308,7 @@ class _PrescriptionCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        prescription.patientName,
+                        prescription.patientName + (prescription.patientOpNumber?.isNotEmpty == true ? ' (OP #${prescription.patientOpNumber})' : ''),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -372,23 +394,66 @@ class _PrescriptionCard extends StatelessWidget {
               ),
             ],
             
+            if (prescription.status == 'rejected' && prescription.rejectionReason != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Rejected by Pharmacist',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            prescription.rejectionReason!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
             const SizedBox(height: 12),
             
             // Action Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton.icon(
-                  onPressed: onToggleActive,
-                  icon: Icon(
-                    prescription.isActive ? Icons.pause : Icons.play_arrow,
-                    size: 18,
+                if (!isDoctor)
+                  TextButton.icon(
+                    onPressed: onToggleActive,
+                    icon: Icon(
+                      prescription.isActive ? Icons.pause : Icons.play_arrow,
+                      size: 18,
+                    ),
+                    label: Text(prescription.isActive ? 'Deactivate' : 'Activate'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: prescription.isActive ? Colors.orange : Colors.green,
+                    ),
                   ),
-                  label: Text(prescription.isActive ? 'Deactivate' : 'Activate'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: prescription.isActive ? Colors.orange : Colors.green,
-                  ),
-                ),
                 TextButton.icon(
                   onPressed: onDelete,
                   icon: const Icon(Icons.delete_outline, size: 18),
@@ -399,6 +464,7 @@ class _PrescriptionCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -25,6 +25,7 @@ import 'settings_screen.dart';
 import 'symptom_history_screen.dart';
 import 'symptom_history_screen.dart';
 import 'drug_verification_screen.dart';
+import 'patient_list_screen.dart';
 import 'pending_prescriptions_screen.dart';
 
 class PharmacistHomeScreen extends StatefulWidget {
@@ -270,6 +271,8 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
               ...List.generate(_recentChats.length, (index) {
                 final chat = _recentChats[index];
                 final unreadCount = chat.unreadPharmacist;
+                final patient = _users.where((u) => u.id == chat.patientId).firstOrNull;
+                final opText = patient?.opNumber?.isNotEmpty == true ? ' (OP #${patient!.opNumber})' : '';
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
@@ -308,7 +311,7 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                       ],
                     ),
                     title: Text(
-                      chat.patientName,
+                      chat.patientName + opText,
                       style: TextStyle(
                         fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.w500,
                       ),
@@ -460,108 +463,21 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
                     );
                   },
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Patients List
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Patients',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: () {
-                    setState(() => _isLoading = true);
-                    _loadUsers();
+                _buildActionCard(
+                  icon: Icons.people_outlined,
+                  title: 'Patient List',
+                  color: const Color(0xFF3F51B5), // Indigo
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PatientListScreen(),
+                      ),
+                    );
                   },
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (_users.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Icon(Icons.people_outline, size: 48, color: Colors.grey[400]),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No users found',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-            else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _users.length,
-                itemBuilder: (context, index) {
-                  final u = _users[index];
-                  return _UserMedicationCard(
-                    user: u,
-                    roleColor: _getRoleColor(u.role),
-                    roleIcon: _getRoleIcon(u.role),
-                    onDelete: () async {
-                      final confirmed = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Delete User'),
-                          content: Text('Are you sure you want to delete ${u.fullName}? This action cannot be undone.'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Cancel'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              style: TextButton.styleFrom(foregroundColor: Colors.red),
-                              child: const Text('Delete'),
-                            ),
-                          ],
-                        ),
-                      );
-                      
-                      if (confirmed == true) {
-                        final authService = AuthService();
-                        final success = await authService.deleteUser(u.id);
-                        if (mounted) {
-                          if (success) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${u.fullName} has been deleted'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                            _loadUsers(); // Refresh the list
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Failed to delete user'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      }
-                    },
-                  );
-                },
-              ),
           ],
         ),
       ),

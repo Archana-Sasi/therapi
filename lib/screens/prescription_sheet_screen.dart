@@ -76,7 +76,14 @@ class _PrescriptionSheetScreenState extends State<PrescriptionSheetScreen> {
   }
 
   String _frequencyText(PrescriptionItem med) {
-    return '${med.morning}-${med.afternoon}-${med.evening}-${med.night}';
+    String f(double d) {
+      if (d == 0) return '0';
+      if (d == 0.5) return '½';
+      if (d == 1.5) return '1½';
+      if (d == 2.5) return '2½';
+      return d.toInt().toString();
+    }
+    return '${f(med.morning)}-${f(med.afternoon)}-${f(med.evening)}-${f(med.night)}';
   }
 
   String _frequencyDescription(PrescriptionItem med) {
@@ -88,23 +95,29 @@ class _PrescriptionSheetScreenState extends State<PrescriptionSheetScreen> {
     if (med.night > 0) { parts.add('Night'); count++; }
 
     String timesLabel;
-    if (count == 1) {
-      timesLabel = 'Once a Day / ஒரு வேளை';
-    } else if (count == 2) {
-      timesLabel = 'Twice a Day / இரண்டு வேளை';
-    } else if (count == 3) {
-      timesLabel = 'Thrice a Day / மூன்று வேளை';
-    } else if (count == 0) {
-      timesLabel = 'As Directed / மருத்துவரின்\nஅறிவுரைப்படி';
+    if (med.frequency != 'Daily') {
+      timesLabel = med.frequency;
     } else {
-      timesLabel = '$count times a Day';
+      if (count == 1) {
+        timesLabel = 'Once a Day / ஒரு வேளை';
+      } else if (count == 2) {
+        timesLabel = 'Twice a Day / இரண்டு வேளை';
+      } else if (count == 3) {
+        timesLabel = 'Thrice a Day / மூன்று வேளை';
+      } else if (count == 0) {
+        timesLabel = 'As Directed / மருத்துவரின்\nஅறிவுரைப்படி';
+      } else {
+        timesLabel = '$count times a Day';
+      }
     }
 
-    final foodStr = med.beforeFood
-        ? '(Before Food / உணவுக்கு முன்)'
-        : '(After Food / உணவுக்கு பின்)';
+    String foodStr = med.foodTiming;
+    if (med.foodTiming == 'Before food') foodStr = 'Before Food / உணவுக்கு முன்';
+    else if (med.foodTiming == 'After food') foodStr = 'After Food / உணவுக்கு பின்';
+    else if (med.foodTiming == 'Empty stomach') foodStr = 'Empty Stomach / வெறும் வயிற்றில்';
+    else if (med.foodTiming == 'With food') foodStr = 'With Food / உணவோடு';
 
-    return '($timesLabel)\n$foodStr';
+    return '($timesLabel)\n($foodStr)';
   }
 
   String _instructionsText(PrescriptionItem med) {
@@ -446,9 +459,10 @@ class _PrescriptionSheetScreenState extends State<PrescriptionSheetScreen> {
               final i = entry.key;
               final med = entry.value;
 
+              final dosageLabel = med.dosage.isNotEmpty ? '\n${med.dosage}' : '';
               final drugLabel = med.brandName.isNotEmpty
-                  ? '${med.genericName}\n[${med.brandName}]'
-                  : med.genericName;
+                  ? '${med.genericName}\n[${med.brandName}]$dosageLabel'
+                  : '${med.genericName}$dosageLabel';
 
               return TableRow(
                 children: [

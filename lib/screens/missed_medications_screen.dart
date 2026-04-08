@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 
-/// Model to hold missed medication info with patient details
+import '../models/user_model.dart';
+
+/// Model to hold missed medication info with full patient details
 class MissedMedicationInfo {
   final String patientId;
   final String patientName;
@@ -13,7 +15,8 @@ class MissedMedicationInfo {
   final String brandName;
   final DateTime scheduledTime;
   final DateTime date;
-  final String logId; // Added for deletion
+  final String logId;
+  final UserModel? patientData; // Full patient profile
 
   const MissedMedicationInfo({
     required this.patientId,
@@ -26,6 +29,7 @@ class MissedMedicationInfo {
     required this.scheduledTime,
     required this.date,
     this.logId = '',
+    this.patientData,
   });
 
   // Create unique key for deduplication
@@ -54,21 +58,40 @@ class _MissedMedicationsScreenState extends State<MissedMedicationsScreen> {
 
   Future<void> _loadMissedMedications() async {
     setState(() => _isLoading = true);
-    final missedData = await _authService.getAllMissedMedicationLogs();
+    
+    // Fetch logs and patients in parallel for efficiency
+    final results = await Future.wait([
+      _authService.getAllMissedMedicationLogs(),
+      _authService.getAllUsers(),
+    ]);
+    
+    final missedData = results[0] as List<Map<String, dynamic>>;
+    final allUsers = results[1] as List<UserModel>;
+    
+    // Create a map for quick patient lookups
+    final Map<String, UserModel> patientMap = {
+      for (var u in allUsers) u.id: u
+    };
     
     // Convert maps to model objects
-    final missed = missedData.map((map) => MissedMedicationInfo(
-      patientId: map['patientId'] ?? '',
-      patientName: map['patientName'] ?? 'Unknown',
-      opNumber: map['opNumber'] ?? '',
-      phoneNumber: map['phoneNumber'] ?? '',
-      age: map['age'] as int?,
-      drugId: map['drugId'] ?? '',
-      brandName: map['brandName'] ?? '',
-      scheduledTime: DateTime.tryParse(map['scheduledTime'] ?? '') ?? DateTime.now(),
-      date: DateTime.tryParse(map['date'] ?? '') ?? DateTime.now(),
-      logId: map['logId'] ?? '',
-    )).toList();
+    final missed = missedData.map((map) {
+      final pid = map['patientId'] ?? '';
+      final patient = patientMap[pid];
+      
+      return MissedMedicationInfo(
+        patientId: pid,
+        patientName: patient?.fullName.isNotEmpty == true ? patient!.fullName : (map['patientName'] ?? 'Unknown'),
+        opNumber: patient?.opNumber ?? map['opNumber'] ?? '',
+        phoneNumber: patient?.phoneNumber ?? map['phoneNumber'] ?? '',
+        age: patient?.age ?? map['age'] as int?,
+        drugId: map['drugId'] ?? '',
+        brandName: map['brandName'] ?? '',
+        scheduledTime: DateTime.tryParse(map['scheduledTime'] ?? '') ?? DateTime.now(),
+        date: DateTime.tryParse(map['date'] ?? '') ?? DateTime.now(),
+        logId: map['logId'] ?? '',
+        patientData: patient,
+      );
+    }).toList();
     
     // Deduplicate entries
     final uniqueMap = <String, MissedMedicationInfo>{};
@@ -131,21 +154,31 @@ class _MissedMedicationsScreenState extends State<MissedMedicationsScreen> {
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (item.opNumber.isNotEmpty)
-              _detailRow(Icons.badge_outlined, 'OP Number', item.opNumber),
-            if (item.phoneNumber.isNotEmpty)
-              _detailRow(Icons.phone_outlined, 'Phone', item.phoneNumber),
-            if (item.age != null)
-              _detailRow(Icons.cake_outlined, 'Age', '${item.age} years'),
-            const Divider(height: 24),
-            _detailRow(Icons.medication_outlined, 'Medication', item.brandName.isNotEmpty ? item.brandName : item.drugId),
-            _detailRow(Icons.schedule_outlined, 'Scheduled Time', _formatTime(item.scheduledTime)),
-            _detailRow(Icons.calendar_today_outlined, 'Missed Date', _formatDate(item.date)),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Patient Information', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+              const SizedBox(height: 12),
+              if (item.opNumber.isNotEmpty)
+                _detailRow(Icons.badge_outlined, 'OP Number', item.opNumber),
+              if (item.patientData?.email != null && item.patientData!.email.isNotEmpty)
+                _detailRow(Icons.email_outlined, 'Email', item.patientData!.email),
+              if (item.phoneNumber.isNotEmpty)
+                _detailRow(Icons.phone_outlined, 'Phone', item.phoneNumber),
+              if (item.age != null)
+                _detailRow(Icons.cake_outlined, 'Age', '${item.age} years'),
+              if (item.patientData?.gender != null && item.patientData!.gender!.isNotEmpty)
+                _detailRow(Icons.person_outline, 'Gender', item.patientData!.gender![0].toUpperCase() + item.patientData!.gender!.substring(1)),
+              const Divider(height: 24),
+              Text('Missed Medication Details', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange[800])),
+              const SizedBox(height: 12),
+              _detailRow(Icons.medication_outlined, 'Medication', item.brandName.isNotEmpty ? item.brandName : item.drugId),
+              _detailRow(Icons.schedule_outlined, 'Scheduled Time', _formatTime(item.scheduledTime)),
+              _detailRow(Icons.calendar_today_outlined, 'Missed Date', _formatDate(item.date)),
+            ],
+          ),
         ),
         actions: [
           TextButton(

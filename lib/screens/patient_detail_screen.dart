@@ -21,7 +21,6 @@ class PatientDetailScreen extends StatefulWidget {
 
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
   final _authService = AuthService();
-  final _videoService = VideoConsultationService();
 
   List<Map<String, dynamic>> _medications = [];
   bool _isLoading = true;

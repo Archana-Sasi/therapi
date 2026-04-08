@@ -21,6 +21,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   final _authService = AuthService();
   List<ChatConversation> _conversations = [];
   List<UserModel> _pharmacists = [];
+  Map<String, UserModel> _patientsMap = {};
   bool _isLoading = true;
   String _userRole = 'patient';
 
@@ -44,6 +45,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     if (_userRole == 'patient') {
       final pharmacists = await _authService.getPharmacists();
       _pharmacists = pharmacists;
+    } else {
+      final allUsers = await _authService.getAllUsers();
+      _patientsMap = { for (var u in allUsers) u.id: u };
     }
 
     if (mounted) {
@@ -141,6 +145,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                       return _ConversationCard(
                         conversation: conversation,
                         userRole: _userRole,
+                        patientUser: _userRole == 'pharmacist' ? _patientsMap[conversation.patientId] : null,
                         onTap: () => _navigateToChat(conversation),
                       );
                     },
@@ -205,17 +210,22 @@ class _ConversationCard extends StatelessWidget {
   const _ConversationCard({
     required this.conversation,
     required this.userRole,
+    this.patientUser,
     required this.onTap,
   });
 
   final ChatConversation conversation;
   final String userRole;
+  final UserModel? patientUser;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final otherName = conversation.getOtherParticipantName(userRole);
+    var otherName = conversation.getOtherParticipantName(userRole);
+    if (userRole == 'pharmacist' && patientUser?.opNumber?.isNotEmpty == true) {
+      otherName += ' (OP #${patientUser!.opNumber})';
+    }
     final unreadCount = conversation.getUnreadCount(userRole);
     final hasUnread = unreadCount > 0;
 

@@ -343,71 +343,89 @@ class _MyMedicationsScreenState extends State<MyMedicationsScreen> {
                               ),
                               const Divider(height: 24),
                               // Reminder section
-                              Row(
-                                children: [
-                                  Icon(
-                                    hasReminder ? Icons.alarm_on : Icons.alarm_off,
-                                    size: 20,
-                                    color: hasReminder ? Colors.blue : Colors.grey,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: hasReminder
-                                        ? Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                reminder.getFormattedTimes(),
-                                                style: const TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w500,
+                              if (med.verificationStatus == 'rejected')
+                                Row(
+                                  children: [
+                                    const Icon(Icons.do_not_disturb_alt, size: 20, color: Colors.red),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Prescription Rejected - Cannot set reminder',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.red[700],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else
+                                Row(
+                                  children: [
+                                    Icon(
+                                      hasReminder ? Icons.alarm_on : Icons.alarm_off,
+                                      size: 20,
+                                      color: hasReminder ? Colors.blue : Colors.grey,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: hasReminder
+                                          ? Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  reminder.getFormattedTimes(),
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
                                                 ),
-                                              ),
-                                              Text(
-                                                '${reminder.dosage} • ${reminder.getFormattedDays()}',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: Colors.grey[600],
+                                                Text(
+                                                  '${reminder.dosage} • ${reminder.getFormattedDays()}',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.grey[600],
+                                                  ),
                                                 ),
+                                              ],
+                                            )
+                                          : Text(
+                                              'No reminder set',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.grey[600],
                                               ),
-                                            ],
-                                          )
-                                        : Text(
-                                            'No reminder set',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Colors.grey[600],
+                                            ),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: () async {
+                                        final result = await Navigator.push<bool>(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => MedicationReminderScreen(
+                                              drugId: drug.id,
+                                              brandName: med.brandName,
+                                              existingReminder: reminder,
                                             ),
                                           ),
-                                  ),
-                                  TextButton.icon(
-                                    onPressed: () async {
-                                      final result = await Navigator.push<bool>(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => MedicationReminderScreen(
-                                            drugId: drug.id,
-                                            brandName: med.brandName,
-                                            existingReminder: reminder,
-                                          ),
-                                        ),
-                                      );
-                                      if (result == true) {
-                                        _loadMedications();
-                                      }
-                                    },
-                                    icon: Icon(
-                                      hasReminder ? Icons.edit : Icons.add_alarm,
-                                      size: 16,
+                                        );
+                                        if (result == true) {
+                                          _loadMedications();
+                                        }
+                                      },
+                                      icon: Icon(
+                                        hasReminder ? Icons.edit : Icons.add_alarm,
+                                        size: 16,
+                                      ),
+                                      label: Text(hasReminder ? 'Edit' : 'Set'),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
                                     ),
-                                    label: Text(hasReminder ? 'Edit' : 'Set'),
-                                    style: TextButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
                             ],
                           ),
                         ),

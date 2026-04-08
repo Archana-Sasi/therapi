@@ -52,7 +52,8 @@ class _PatientListScreenState extends State<PatientListScreen> {
       _filteredPatients = _patients.where((p) {
         final name = p.fullName.toLowerCase();
         final email = p.email.toLowerCase();
-        return name.contains(query) || email.contains(query);
+        final op = (p.opNumber ?? '').toLowerCase();
+        return name.contains(query) || email.contains(query) || op.contains(query);
       }).toList();
     });
   }

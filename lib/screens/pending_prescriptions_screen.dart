@@ -49,7 +49,56 @@ class _PendingPrescriptionsScreenState extends State<PendingPrescriptionsScreen>
   }
 
   Future<void> _rejectPrescription(Prescription prescription) async {
-    final success = await _authService.rejectPrescription(prescription.id);
+    final reasonController = TextEditingController();
+    final shouldReject = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject Prescription'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Please provide a reason for rejecting this prescription (e.g., Wrong Patient OP Number):'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  hintText: 'Rejection reason...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldReject != true) return;
+    
+    final reason = reasonController.text.trim();
+    if (reason.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please provide a rejection reason'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
+    final success = await _authService.rejectPrescription(prescription.id, reason);
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -106,7 +155,7 @@ class _PendingPrescriptionsScreenState extends State<PendingPrescriptionsScreen>
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  prescription.patientName,
+                                  prescription.patientName + (prescription.patientOpNumber?.isNotEmpty == true ? ' (OP #${prescription.patientOpNumber})' : ''),
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,

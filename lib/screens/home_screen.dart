@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../data/tamil_translations.dart';
 import '../models/medication_log.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import '../models/prescription_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/language_provider.dart';
@@ -12,6 +13,7 @@ import 'arrival_screen.dart';
 import 'consultations_screen.dart';
 import 'conversations_screen.dart';
 import 'disease_selection_screen.dart';
+import 'respiratory_drug_directory_screen.dart';
 import '../services/video_consultation_service.dart';
 import 'my_medications_screen.dart';
 import 'notifications_screen.dart';
@@ -20,6 +22,9 @@ import 'settings_screen.dart';
 import 'symptom_history_screen.dart';
 import 'prescription_sheet_screen.dart';
 import 'my_prescriptions_screen.dart';
+import 'request_consultation_screen.dart';
+import '../utils/prescription_expiry.dart';
+import '../widgets/prescription_expiry_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,6 +49,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int _unreadNotifications = 0;
   int _unreadChats = 0;
   Timer? _refreshTimer;
+  // Cache: drugId -> {level, daysSinceExpiry}
+  Map<String, Map<String, dynamic>> _expiryCache = {};
 
   @override
   void initState() {
@@ -125,6 +132,10 @@ class _HomeScreenState extends State<HomeScreen> {
     
     // Get logs and process them locally
     final logs = await _authService.getTodaysMedicationLogs();
+    
+    // Pre-load expiry info for all drugs in today's logs
+    await _loadExpiryCache(logs);
+    
     _processLogs(logs);
   }
 
@@ -242,6 +253,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _markAsTaken(MedicationLog log) async {
+    // Check prescription expiry level before allowing
+    final info = _expiryCache[log.drugId] ?? 
+        await _authService.getExpiryInfoForDrug(log.drugId);
+    final level = info['level'] as PrescriptionExpiryLevel? ?? PrescriptionExpiryLevel.none;
+    final daysSinceExpiry = info['daysSinceExpiry'] as int? ?? 0;
+
+    if (level != PrescriptionExpiryLevel.none) {
+      if (!mounted) return;
+      final proceed = await PrescriptionExpiryDialog.showWarning(
+        context,
+        level: level,
+        daysSinceExpiry: daysSinceExpiry,
+        drugName: log.brandName.isNotEmpty ? log.brandName : log.drugId,
+      );
+      if (!proceed) return;
+    }
+
     final success = await _authService.updateMedicationLogStatus(
       log.id, 
       MedicationStatus.taken,
@@ -254,6 +282,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
       _loadSummary();
+    } else if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot mark as taken — prescription expired. Please consult your doctor.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -295,6 +330,70 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       _loadSummary();
     }
+  }
+
+  /// Pre-loads expiry information for every unique drug in today's logs.
+  Future<void> _loadExpiryCache(List<MedicationLog> logs) async {
+    final drugIds = logs.map((l) => l.drugId).toSet();
+    final cache = <String, Map<String, dynamic>>{};
+    for (final drugId in drugIds) {
+      cache[drugId] = await _authService.getExpiryInfoForDrug(drugId);
+    }
+    if (mounted) {
+      setState(() => _expiryCache = cache);
+    }
+  }
+
+  /// Builds a colour-coded expiry warning banner.
+  Widget _buildExpiryBanner(PrescriptionExpiryLevel level, int daysSinceExpiry) {
+    Color bgColor;
+    Color fgColor;
+    IconData icon;
+    String message;
+
+    switch (level) {
+      case PrescriptionExpiryLevel.green:
+        bgColor = Colors.amber.withOpacity(0.12);
+        fgColor = Colors.amber[800]!;
+        icon = Icons.warning_amber_rounded;
+        message = 'Prescription expired $daysSinceExpiry day${daysSinceExpiry == 1 ? '' : 's'} ago. Please renew.';
+        break;
+      case PrescriptionExpiryLevel.yellow:
+        bgColor = Colors.orange.withOpacity(0.12);
+        fgColor = Colors.orange[800]!;
+        icon = Icons.error_outline;
+        message = 'Prescription expired $daysSinceExpiry days ago. Please consult your doctor.';
+        break;
+      case PrescriptionExpiryLevel.red:
+        bgColor = Colors.red.withOpacity(0.12);
+        fgColor = Colors.red[800]!;
+        icon = Icons.block;
+        message = 'Prescription expired. You must consult a doctor to continue.';
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: fgColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: fgColor),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 11, color: fgColor, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -516,7 +615,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                ...(_overdueLogs.take(5).map((log) => Card(
+                ...(_overdueLogs.take(5).map((log) {
+                  final expiryInfo = _expiryCache[log.drugId];
+                  final expiryLevel = expiryInfo?['level'] as PrescriptionExpiryLevel? ?? PrescriptionExpiryLevel.none;
+                  final daysSinceExpiry = expiryInfo?['daysSinceExpiry'] as int? ?? 0;
+                  final isRed = expiryLevel == PrescriptionExpiryLevel.red;
+
+                  return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   color: theme.colorScheme.errorContainer.withOpacity(0.3),
                   child: Padding(
@@ -553,8 +658,34 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ],
                         ),
+                        // Prescription expiry warning banner
+                        if (expiryLevel != PrescriptionExpiryLevel.none) ...[
+                          const SizedBox(height: 8),
+                          _buildExpiryBanner(expiryLevel, daysSinceExpiry),
+                        ],
                         const SizedBox(height: 12),
-                        Row(
+                        if (isRed)
+                          // Red level: only show Request Consultation
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const RequestConsultationScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.video_call, size: 18),
+                              label: const Text('Request Consultation'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                            ),
+                          )
+                        else
+                          Row(
                           children: [
                             Expanded(
                                 child: OutlinedButton.icon(
@@ -583,7 +714,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                ))),
+                );})),
                 const SizedBox(height: 16),
               ],
 
@@ -596,32 +727,61 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ...(_pendingLogs.take(3).map((log) => Card(
+                ...(_pendingLogs.take(3).map((log) {
+                  final expiryInfo = _expiryCache[log.drugId];
+                  final expiryLevel = expiryInfo?['level'] as PrescriptionExpiryLevel? ?? PrescriptionExpiryLevel.none;
+                  final daysSinceExpiry = expiryInfo?['daysSinceExpiry'] as int? ?? 0;
+                  final isRed = expiryLevel == PrescriptionExpiryLevel.red;
+
+                  return Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(Icons.medication, color: theme.colorScheme.primary),
-                    ),
-                    title: Text(
-                      log.brandName.isNotEmpty ? log.brandName : log.drugId,
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    subtitle: Text(
-                      'Scheduled: ${_formatTime(log.scheduledTime)}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                    trailing: TextButton(
-                      onPressed: () => _markAsTaken(log),
-                      child: const Text('Take'),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(Icons.medication, color: theme.colorScheme.primary),
+                          ),
+                          title: Text(
+                            log.brandName.isNotEmpty ? log.brandName : log.drugId,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          subtitle: Text(
+                            'Scheduled: ${_formatTime(log.scheduledTime)}',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          ),
+                          trailing: isRed
+                              ? TextButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const RequestConsultationScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('Consult', style: TextStyle(color: Colors.red)),
+                                )
+                              : TextButton(
+                                  onPressed: () => _markAsTaken(log),
+                                  child: const Text('Take'),
+                                ),
+                        ),
+                        // Prescription expiry warning banner
+                        if (expiryLevel != PrescriptionExpiryLevel.none)
+                          _buildExpiryBanner(expiryLevel, daysSinceExpiry),
+                      ],
                     ),
                   ),
-                ))),
+                );})),
                 const SizedBox(height: 16),
               ],
 
@@ -646,7 +806,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _QuickActionCard(
                     icon: Icons.medication_outlined,
                     title: t('Drug Directory'),
-                    subtitle: t('A-Z Medications'),
+                    subtitle: t('By Disease'),
                     color: const Color(0xFF2196F3),
                     onTap: () {
                       Navigator.push(
@@ -1026,13 +1186,13 @@ class _HomeScreenState extends State<HomeScreen> {
             leading: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.logout, color: Colors.red),
+              child: const Icon(Icons.logout, color: Colors.orange),
             ),
-            title: Text(t('Logout'), style: const TextStyle(color: Colors.red)),
-            trailing: const Icon(Icons.chevron_right, color: Colors.red),
+            title: Text(t('Logout'), style: const TextStyle(color: Colors.orange)),
+            trailing: const Icon(Icons.chevron_right, color: Colors.orange),
             onTap: () async {
               Navigator.pop(context);
               await context.read<AuthProvider>().signOut();
@@ -1040,10 +1200,108 @@ class _HomeScreenState extends State<HomeScreen> {
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 ArrivalScreen.route,
-                (_) => false,
+                (route) => false,
               );
             },
           ),
+          const Divider(height: 1),
+          // Delete Account
+          ListTile(
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.person_remove, color: Colors.red),
+            ),
+            title: Text(t('Delete Account'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            trailing: const Icon(Icons.chevron_right, color: Colors.red),
+            onTap: () async {
+              Navigator.pop(context); // Close drawer
+              final user = fb_auth.FirebaseAuth.instance.currentUser;
+              final isPassword = user?.providerData.any((info) => info.providerId == 'password') ?? false;
+              String? enteredPassword;
+
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (context) {
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      return AlertDialog(
+                        title: const Text('Delete Account', style: TextStyle(color: Colors.red)),
+                        content: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Are you sure you want to completely delete your account? This action cannot be undone.'),
+                              if (isPassword) ...[
+                                const SizedBox(height: 16),
+                                const Text('To verify your identity, please enter your current password:'),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  obscureText: true,
+                                  onChanged: (value) => enteredPassword = value,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Password',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      );
+                    }
+                  );
+                },
+              );
+
+              if (confirmed == true && context.mounted) {
+                // For password users, they must have entered a password
+                if (isPassword && (enteredPassword == null || enteredPassword!.isEmpty)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Password is required to delete your account.'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+
+                final success = await context.read<AuthProvider>().deleteAccount(password: enteredPassword);
+                if (!context.mounted) return;
+                
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Account successfully deleted.'), backgroundColor: Colors.green),
+                  );
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    ArrivalScreen.route,
+                    (route) => false,
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to delete account. Incorrect password or network error.'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+          ),
+          const SizedBox(height: 16),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
         ],
       ),
@@ -1059,9 +1317,10 @@ class _HomeScreenState extends State<HomeScreen> {
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            labelText: 'Enter Room Code or Doctor ID',
-            hintText: 'e.g. therap_app_doctor123',
+            labelText: 'Paste Google Meet or Zoom Link',
+            hintText: 'https://meet.google.com/xxx-xxxx-xxx',
           ),
+          keyboardType: TextInputType.url,
         ),
         actions: [
           TextButton(
@@ -1072,18 +1331,13 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               if (controller.text.isNotEmpty) {
                 Navigator.pop(context);
-                final roomName = controller.text.trim();
+                final link = controller.text.trim();
                 try {
-                  // If input is just ID, prepend prefix, otherwise use as is
-                  final fullRoomName = roomName.startsWith('therap_app_') 
-                      ? roomName 
-                      : 'therap_app_$roomName';
-                      
-                  await _videoService.launchMeeting(fullRoomName);
+                  await _videoService.launchMeetingUrl(link);
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Could not launch video call')),
+                      SnackBar(content: Text('Could not launch video call: ${e.toString()}')),
                     );
                   }
                 }

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/consultation.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../services/video_consultation_service.dart';
 import 'request_consultation_screen.dart';
 
 /// Screen for viewing and managing video consultations.
@@ -20,6 +21,7 @@ class ConsultationsScreen extends StatefulWidget {
 class _ConsultationsScreenState extends State<ConsultationsScreen>
     with SingleTickerProviderStateMixin {
   final _authService = AuthService();
+  final _videoService = VideoConsultationService();
   late TabController _tabController;
   
   List<Consultation> _consultations = [];
@@ -107,7 +109,7 @@ class _ConsultationsScreenState extends State<ConsultationsScreen>
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -127,7 +129,7 @@ class _ConsultationsScreenState extends State<ConsultationsScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'Paste the video call link to share with the patient and doctor.',
+                'Paste the Google Meet link to share with the patient and doctor.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600], fontSize: 13),
               ),
@@ -135,7 +137,7 @@ class _ConsultationsScreenState extends State<ConsultationsScreen>
               TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  hintText: 'https://meet.jit.si/room-name',
+                  hintText: 'https://meet.google.com/xxx-xxxx-xxx',
                   hintStyle: TextStyle(color: Colors.grey[400]),
                   prefixIcon: const Icon(Icons.videocam_outlined, color: Color(0xFF1565C0)),
                   filled: true,
@@ -535,33 +537,13 @@ class _ConsultationsScreenState extends State<ConsultationsScreen>
   Future<void> _joinMeeting(String? link) async {
     if (link == null || link.isEmpty) return;
     
-    String url = link.trim();
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://$url';
-    }
-    
     try {
-      final uri = Uri.parse(url);
-      final launched = await launchUrl(
-        uri, 
-        mode: LaunchMode.inAppBrowserView,
-      );
-      
-      if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Could not open meeting link.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
+      await _videoService.launchMeetingUrl(link);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error opening link: $e'),
+            content: Text(e.toString()),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -807,7 +789,7 @@ class _ConsultationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final otherName = userRole == 'patient'
         ? consultation.pharmacistName
-        : consultation.patientName;
+        : consultation.patientName + (consultation.patientOpNumber?.isNotEmpty == true ? ' (OP #${consultation.patientOpNumber})' : '');
 
     final roleLabel = userRole == 'patient' ? 'Pharmacist' : 'Patient';
     final avatarLetter = otherName.isNotEmpty ? otherName[0].toUpperCase() : '?';

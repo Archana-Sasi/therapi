@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Model for custom drugs added by pharmacists/admins
+/// Model for custom drugs added by pharmacists/Doctors
 class CustomDrug {
   const CustomDrug({
     required this.id,

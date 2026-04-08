@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/prescription_expiry.dart';
+
 class PrescriptionItem {
   PrescriptionItem({
     required this.drugId,
@@ -8,11 +10,13 @@ class PrescriptionItem {
     required this.dosage,
     required this.duration,
     this.instructions = '',
-    this.morning = 0,
-    this.afternoon = 0,
-    this.evening = 0,
-    this.night = 0,
+    this.morning = 0.0,
+    this.afternoon = 0.0,
+    this.evening = 0.0,
+    this.night = 0.0,
     this.beforeFood = true,
+    this.frequency = 'Daily',
+    this.foodTiming = 'Before food',
   });
 
   final String drugId;
@@ -21,11 +25,13 @@ class PrescriptionItem {
   final String dosage;
   final String duration;
   final String instructions;
-  final int morning;
-  final int afternoon;
-  final int evening;
-  final int night;
+  final double morning;
+  final double afternoon;
+  final double evening;
+  final double night;
   final bool beforeFood;
+  final String frequency;
+  final String foodTiming;
 
   Map<String, dynamic> toMap() {
     return {
@@ -40,6 +46,8 @@ class PrescriptionItem {
       'evening': evening,
       'night': night,
       'beforeFood': beforeFood,
+      'frequency': frequency,
+      'foodTiming': foodTiming,
     };
   }
 
@@ -56,14 +64,31 @@ class PrescriptionItem {
       evening: _parseTabletCount(map['evening']),
       night: _parseTabletCount(map['night']),
       beforeFood: map['beforeFood'] ?? true,
+      frequency: map['frequency'] ?? 'Daily',
+      foodTiming: map['foodTiming'] ?? (map['beforeFood'] == true ? 'Before food' : 'After food'),
     );
   }
 
-  static int _parseTabletCount(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is bool) return value ? 1 : 0;
-    return 0;
+  static double _parseTabletCount(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    if (value is bool) return value ? 1.0 : 0.0;
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  static String getReadableDosage(double val) {
+    if (val == 0) return '0';
+    if (val == 0.5) return '½ tablet';
+    if (val == 1.0) return '1 tablet';
+    if (val == 1.5) return '1½ tablets';
+    if (val == 2.0) return '2 tablets';
+    if (val == 2.5) return '2½ tablets';
+    if (val == 3.0) return '3 tablets';
+    // Fallback if someone enters something unusual
+    bool isInteger = val == val.roundToDouble();
+    return '${isInteger ? val.toInt() : val} tablet${val > 1 ? 's' : ''}';
   }
 }
 
@@ -76,10 +101,12 @@ class Prescription {
     required this.pharmacistId,
     required this.pharmacistName,
     required this.createdAt,
+    DateTime? expiryDate,
     this.isActive = true,
     this.doctorId,
     this.doctorName,
     this.status = 'approved',
+    this.rejectionReason,
     this.medications = const [],
     // Clinical / consultation-note fields
     this.complaints = '',
@@ -100,12 +127,12 @@ class Prescription {
     this.dosage = '',
     this.instructions = '',
     this.duration = '',
-    this.morning = 0,
-    this.afternoon = 0,
-    this.evening = 0,
-    this.night = 0,
+    this.morning = 0.0,
+    this.afternoon = 0.0,
+    this.evening = 0.0,
+    this.night = 0.0,
     this.beforeFood = true,
-  });
+  }) : _expiryDate = expiryDate;
 
   final String id;
   final String patientId;
@@ -113,10 +140,14 @@ class Prescription {
   final String pharmacistId;
   final String pharmacistName;
   final DateTime createdAt;
+  /// When this prescription expires. Defaults to createdAt + 30 days.
+  final DateTime? _expiryDate;
+  DateTime get expiryDate => _expiryDate ?? createdAt.add(const Duration(days: 30));
   final bool isActive;
   final String? doctorId;
   final String? doctorName;
   final String status;
+  final String? rejectionReason;
   final List<PrescriptionItem> medications;
 
   // Clinical / consultation-note fields
@@ -139,11 +170,23 @@ class Prescription {
   final String dosage;
   final String instructions;
   final String duration;
-  final int morning;
-  final int afternoon;
-  final int evening;
-  final int night;
+  final double morning;
+  final double afternoon;
+  final double evening;
+  final double night;
   final bool beforeFood;
+
+  // ---- Expiry helpers ----
+
+  /// Whether the prescription has expired.
+  bool get isExpired => DateTime.now().isAfter(expiryDate);
+
+  /// Number of days since the prescription expired (0 if still valid).
+  int get daysSinceExpiry => PrescriptionExpiryHelper.getDaysSinceExpiry(expiryDate);
+
+  /// The escalation level based on how long the prescription has been expired.
+  PrescriptionExpiryLevel get expiryLevel =>
+      PrescriptionExpiryHelper.getExpiryLevel(expiryDate);
 
   /// Returns medications list — if empty, falls back to legacy single-drug fields
   List<PrescriptionItem> get effectiveMedications {
@@ -173,10 +216,12 @@ class Prescription {
     String? pharmacistId,
     String? pharmacistName,
     DateTime? createdAt,
+    DateTime? expiryDate,
     bool? isActive,
     String? doctorId,
     String? doctorName,
     String? status,
+    String? rejectionReason,
     List<PrescriptionItem>? medications,
     String? complaints,
     String? examination,
@@ -195,10 +240,10 @@ class Prescription {
     String? dosage,
     String? instructions,
     String? duration,
-    int? morning,
-    int? afternoon,
-    int? evening,
-    int? night,
+    double? morning,
+    double? afternoon,
+    double? evening,
+    double? night,
     bool? beforeFood,
   }) {
     return Prescription(
@@ -208,10 +253,12 @@ class Prescription {
       pharmacistId: pharmacistId ?? this.pharmacistId,
       pharmacistName: pharmacistName ?? this.pharmacistName,
       createdAt: createdAt ?? this.createdAt,
+      expiryDate: expiryDate ?? _expiryDate,
       isActive: isActive ?? this.isActive,
       doctorId: doctorId ?? this.doctorId,
       doctorName: doctorName ?? this.doctorName,
       status: status ?? this.status,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
       medications: medications ?? this.medications,
       complaints: complaints ?? this.complaints,
       examination: examination ?? this.examination,
@@ -246,10 +293,12 @@ class Prescription {
       'pharmacistId': pharmacistId,
       'pharmacistName': pharmacistName,
       'createdAt': createdAt.toIso8601String(),
+      'expiryDate': expiryDate.toIso8601String(),
       'isActive': isActive,
       'doctorId': doctorId,
       'doctorName': doctorName,
       'status': status,
+      'rejectionReason': rejectionReason,
       'medications': medications.map((m) => m.toMap()).toList(),
       'complaints': complaints,
       'examination': examination,
@@ -294,10 +343,14 @@ class Prescription {
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'])
           : DateTime.now(),
+      expiryDate: map['expiryDate'] != null
+          ? DateTime.parse(map['expiryDate'])
+          : null,  // will default to createdAt + 30 days via getter
       isActive: map['isActive'] ?? true,
       doctorId: map['doctorId'],
       doctorName: map['doctorName'],
       status: map['status'] ?? 'approved',
+      rejectionReason: map['rejectionReason'],
       medications: meds,
       complaints: map['complaints'] ?? '',
       examination: map['examination'] ?? '',
@@ -326,11 +379,13 @@ class Prescription {
     );
   }
 
-  static int _parseTabletCount(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is bool) return value ? 1 : 0;
-    return 0;
+  static double _parseTabletCount(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    if (value is bool) return value ? 1.0 : 0.0;
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 
   String get formattedDate {
