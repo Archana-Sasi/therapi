@@ -526,11 +526,6 @@ class _PharmacistHomeScreenState extends State<PharmacistHomeScreen> {
     );
   }
 
-  void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Coming soon!')),
-    );
-  }
 
   Color _getRoleColor(String role) {
     switch (role) {

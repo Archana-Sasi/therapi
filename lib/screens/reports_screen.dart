@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../services/data_export_service.dart';
 
 import '../data/drug_data.dart';
 import '../models/user_model.dart';
@@ -18,7 +21,9 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> {
   List<UserModel> _users = [];
   bool _isLoading = true;
+  bool _isExporting = false;
   String _selectedReport = 'users';
+  final _exportService = DataExportService();
 
   @override
   void initState() {
@@ -472,15 +477,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Export feature coming soon!'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
-        icon: const Icon(Icons.download_outlined),
+        onPressed: _isExporting ? null : () => _handleExport(_selectedReport),
+        icon: _isExporting
+            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : const Icon(Icons.download_outlined),
         label: Text(label),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF6366F1),
@@ -489,6 +489,42 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleExport(String reportType) async {
+    setState(() => _isExporting = true);
+
+    try {
+      final filePath = await _exportService.exportSystemReport(reportType, _users);
+      if (!mounted) return;
+
+      setState(() => _isExporting = false);
+
+      if (filePath != null) {
+        await Share.shareXFiles(
+          [XFile(filePath)],
+          subject: 'RespiriCare ${reportType.toUpperCase()} Report',
+          text: 'Admin Report for RespiriCare System.',
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to generate report'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isExporting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Color _getRoleColor(String role) {

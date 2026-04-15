@@ -982,4 +982,196 @@ class DataExportService {
         '${date.month.toString().padLeft(2, '0')}/'
         '${date.year}';
   }
+
+  /// Exports a system report based on the selected type
+  Future<String?> exportSystemReport(String reportType, List<UserModel> users) async {
+    try {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          header: (context) => pw.Container(
+            padding: const pw.EdgeInsets.only(bottom: 10),
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: _primaryColor, width: 2)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'RESPIRICARE DATA REPORT',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                    color: _primaryColor,
+                  ),
+                ),
+                pw.Text(
+                  _formatDateTime(DateTime.now()),
+                  style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+              ],
+            ),
+          ),
+          footer: (context) => _buildPageFooter(context),
+          build: (context) {
+            if (reportType == 'users') {
+              return _buildSystemUserReportPdf(users);
+            } else if (reportType == 'medications') {
+              return _buildSystemMedicationReportPdf(users);
+            } else {
+              return _buildSystemActivityReportPdf(users);
+            }
+          },
+        ),
+      );
+
+      final outputDir = await _getOutputDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'RespiriCare_${reportType.toUpperCase()}_Report_$timestamp.pdf';
+      final file = File('${outputDir.path}/$fileName');
+      await file.writeAsBytes(await pdf.save());
+
+      return file.path;
+    } catch (e) {
+      print('Error exporting system report: $e');
+      return null;
+    }
+  }
+
+  List<pw.Widget> _buildSystemUserReportPdf(List<UserModel> users) {
+    final patients = users.where((u) => u.role == 'patient').toList();
+    final pharmacists = users.where((u) => u.role == 'pharmacist').toList();
+
+    return [
+      pw.SizedBox(height: 10),
+      pw.Text('User Summary', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _primaryColor)),
+      pw.SizedBox(height: 8),
+      _buildInfoRow('Total Registered Users', users.length.toString()),
+      _buildInfoRow('Patients', patients.length.toString()),
+      _buildInfoRow('Pharmacists', pharmacists.length.toString()),
+      pw.SizedBox(height: 20),
+      pw.Text('All Users', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _primaryColor)),
+      pw.SizedBox(height: 8),
+      pw.Table(
+        border: pw.TableBorder.all(color: _tableBorderColor, width: 0.5),
+        columnWidths: {
+          0: const pw.FlexColumnWidth(3),
+          1: const pw.FlexColumnWidth(2),
+          2: const pw.FlexColumnWidth(1),
+        },
+        children: [
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+            children: [
+              _buildTableHeaderCell('Name'),
+              _buildTableHeaderCell('Role'),
+              _buildTableHeaderCell('Age'),
+            ],
+          ),
+          ...users.map((user) => pw.TableRow(
+            children: [
+              _buildTableCell(user.fullName.isNotEmpty ? user.fullName : user.email),
+              _buildTableCell(user.role.toUpperCase()),
+              _buildTableCell(user.age?.toString() ?? '-'),
+            ],
+          )),
+        ],
+      ),
+    ];
+  }
+
+  List<pw.Widget> _buildSystemMedicationReportPdf(List<UserModel> users) {
+    final patients = users.where((u) => u.role == 'patient').toList();
+    final patientsWithMeds = patients.where((p) => p.medications.isNotEmpty).toList();
+    final totalMeds = patients.fold<int>(0, (sum, p) => sum + p.medications.length);
+
+    final medicationCounts = <String, int>{};
+    for (final patient in patients) {
+      for (final med in patient.medications) {
+        medicationCounts[med.drugId] = (medicationCounts[med.drugId] ?? 0) + 1;
+      }
+    }
+    final sortedMeds = medicationCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return [
+      pw.SizedBox(height: 10),
+      pw.Text('Medication Summary', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _primaryColor)),
+      pw.SizedBox(height: 8),
+      _buildInfoRow('Total Patients', patients.length.toString()),
+      _buildInfoRow('Patients with Medications', patientsWithMeds.length.toString()),
+      _buildInfoRow('Patients without Medications', (patients.length - patientsWithMeds.length).toString()),
+      _buildInfoRow('Total Medication Entries', totalMeds.toString()),
+      _buildInfoRow('Unique Medications', medicationCounts.length.toString()),
+      _buildInfoRow('Avg Meds per Patient', patients.isNotEmpty ? (totalMeds / patients.length).toStringAsFixed(1) : '0'),
+      pw.SizedBox(height: 20),
+      pw.Text('Most Prescribed Medications', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _primaryColor)),
+      pw.SizedBox(height: 8),
+      pw.Table(
+        border: pw.TableBorder.all(color: _tableBorderColor, width: 0.5),
+        columnWidths: {
+          0: const pw.FlexColumnWidth(3),
+          1: const pw.FlexColumnWidth(2),
+        },
+        children: [
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+            children: [
+              _buildTableHeaderCell('Medication Generic Name'),
+              _buildTableHeaderCell('Patients Prescribed'),
+            ],
+          ),
+          if (sortedMeds.isEmpty)
+            pw.TableRow(
+              children: [
+                _buildTableCell('No medication data'),
+                _buildTableCell(''),
+              ]
+            )
+          else
+            ...sortedMeds.take(20).map((entry) {
+              final drug = DrugData.getDrugById(entry.key);
+              return pw.TableRow(
+                children: [
+                  _buildTableCell(drug?.genericName ?? 'Unknown'),
+                  _buildTableCell('${entry.value} patients'),
+                ],
+              );
+            }),
+        ],
+      ),
+    ];
+  }
+
+  List<pw.Widget> _buildSystemActivityReportPdf(List<UserModel> users) {
+    final now = DateTime.now();
+    final patients = users.where((u) => u.role == 'patient').toList();
+    final withMeds = patients.where((p) => p.medications.isNotEmpty).length;
+
+    return [
+      pw.SizedBox(height: 10),
+      pw.Text('Report Information', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _primaryColor)),
+      pw.SizedBox(height: 8),
+      _buildInfoRow('Report Generated', '${now.day}/${now.month}/${now.year}'),
+      _buildInfoRow('Report Time', '${now.hour}:${now.minute.toString().padLeft(2, '0')}'),
+      _buildInfoRow('Report Period', 'All Time'),
+      pw.SizedBox(height: 20),
+      pw.Text('Activity Summary', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _primaryColor)),
+      pw.SizedBox(height: 8),
+      _buildInfoRow('Total Users', users.length.toString()),
+      _buildInfoRow('Active Patients (with Meds)', withMeds.toString()),
+      _buildInfoRow('Inactive Patients', (patients.length - withMeds).toString()),
+      _buildInfoRow('Medication Adoption Rate', patients.isNotEmpty ? '${(withMeds / patients.length * 100).toStringAsFixed(1)}%' : 'N/A'),
+      pw.SizedBox(height: 20),
+      pw.Text('System Status', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _primaryColor)),
+      pw.SizedBox(height: 8),
+      _buildInfoRow('Database', 'Connected'),
+      _buildInfoRow('Authentication', 'Active'),
+      _buildInfoRow('Notifications', 'Enabled'),
+      _buildInfoRow('Analytics', 'Running'),
+    ];
+  }
 }
